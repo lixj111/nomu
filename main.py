@@ -1,14 +1,16 @@
 """自动记账Agent主入口"""
 import os
 from pathlib import Path
-
+from dotenv import load_dotenv
 from agent.accounting_agent import AccountingAgent
 
+load_dotenv()
 
 def main():
     """主函数"""
     # 配置API密钥（建议使用环境变量）
     API_KEY = os.getenv("ZHIPU_API_KEY", "your-api-key-here")
+    print(f"使用 Zhipu API 密钥: {API_KEY}")
 
     # 初始化Agent
     agent = AccountingAgent(

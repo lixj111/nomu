@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import time
 from zai import ZhipuAiClient
 
@@ -27,8 +28,34 @@ class VisionAnalyzer:
         Returns:
             base64 编码的字符串
         """
-        with open(image_path, 'rb') as image_file:
-            return base64.b64encode(image_file.read()).decode('utf-8')
+        # 添加文件检查和重试机制
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                # 检查文件是否存在且可读
+                if not os.path.exists(image_path):
+                    raise FileNotFoundError(f"图片文件不存在: {image_path}")
+
+                # 检查文件大小
+                file_size = os.path.getsize(image_path)
+                if file_size == 0:
+                    raise ValueError(f"图片文件为空: {image_path}")
+                if file_size > 10 * 1024 * 1024:  # 10MB
+                    print(f"警告: 图片文件过大 ({file_size / 1024 / 1024:.2f}MB)")
+
+                # 尝试读取文件
+                with open(image_path, 'rb') as image_file:
+                    image_data = image_file.read()
+                    if not image_data:
+                        raise ValueError(f"无法读取图片数据: {image_path}")
+                    return base64.b64encode(image_data).decode('utf-8')
+
+            except (IOError, OSError) as e:
+                if attempt < max_attempts - 1:
+                    print(f"文件读取失败(尝试 {attempt + 1}/{max_attempts}): {str(e)}")
+                    time.sleep(0.5)  # 短暂等待后重试
+                else:
+                    raise Exception(f"文件读取失败，已重试 {max_attempts} 次: {str(e)}")
 
     def analyze_image(
         self,
@@ -86,7 +113,9 @@ class VisionAnalyzer:
         image_input: str,
         prompt: str,
         schema: dict,
-        use_base64: bool = True
+        use_base64: bool = True,
+        max_retries: int = 3,
+        retry_delay: float = 1.0
     ) -> dict:
         """分析图像并返回结构化结果
 
@@ -95,6 +124,8 @@ class VisionAnalyzer:
             prompt: 分析提示词
             schema: 期望的 JSON 结构 schema
             use_base64: 是否使用 base64 编码
+            max_retries: 最大重试次数
+            retry_delay: 重试延迟(秒)
 
         Returns:
             解析后的结构化数据（字典格式）
@@ -116,7 +147,7 @@ class VisionAnalyzer:
                 }
             }
         """
-        # 准备图像 URL
+        # 准备图像 URL(提前读取并编码,避免重复读取)
         if use_base64:
             base64_image = self.encode_image(image_input)
             image_url = f"data:image/jpeg;base64,{base64_image}"
@@ -150,12 +181,26 @@ class VisionAnalyzer:
             }
         ]
 
-        # 调用模型（非流式）
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            stream=False
-        )
+        print("*" * 50)
+
+        # 添加重试机制
+        for attempt in range(max_retries):
+            try:
+                # 调用模型（非流式）,添加超时参数
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    stream=False,
+                    timeout=120.0  # 设置30秒超时
+                )
+                break  # 成功则跳出循环
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"第 {attempt + 1} 次尝试失败: {str(e)}，{retry_delay}秒后重试...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # 指数退避
+                else:
+                    raise Exception(f"API调用失败，已重试 {max_retries} 次: {str(e)}")
 
         # 解析 JSON 响应
         content = response.choices[0].message.content
@@ -168,7 +213,23 @@ class VisionAnalyzer:
         else:
             json_str = content.strip()
 
-        return json.loads(json_str)
+        print(json_str)
+        print(type(json_str))
+
+        # 修改后
+        import re
+        # 清理非法控制字符 (保留 \n \t 等合法字符)
+        clean_json = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', json_str)  # 移除ASCII控制字符
+        try:
+            return json.loads(clean_json)
+        except json.JSONDecodeError as e:
+            # 记录原始错误并返回结构化错误
+            print(f"JSON解析失败，原始内容: {json_str}")
+            return {
+                "success": False,
+                "error": f"解析失败: {str(e)}",
+                "raw_text_preview": json_str[:200]  # 保留部分原始内容用于调试
+            }
 
 
 def main():
