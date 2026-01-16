@@ -190,4 +190,5 @@ temp/
 *.tmp
 *.temp
 
-*.png
+.claude/
+CLAUDE.md
