@@ -1,0 +1,48 @@
+"""后端配置管理"""
+import os
+from pathlib import Path
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    """应用配置"""
+
+    # 应用信息
+    APP_NAME: str = "自动记账系统"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = True
+
+    # API密钥
+    ZHIPU_API_KEY: str
+    VISION_MODEL: str = "glm-4.6v"
+
+    # 数据库配置
+    DB_PATH: str = "accounting.db"
+
+    # JWT配置
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7天
+
+    # 文件上传配置
+    UPLOAD_DIR: str = "backend/static/uploads"
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
+    ALLOWED_IMAGE_TYPES: list = [".jpg", ".jpeg", ".png", ".webp"]
+
+    # CORS配置
+    CORS_ORIGINS: list = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    # 识别配置
+    CONFIDENCE_THRESHOLD: float = 0.7
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+# 全局配置实例
+settings = Settings()
+
+# 确保上传目录存在
+Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
