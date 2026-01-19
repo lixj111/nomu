@@ -70,22 +70,29 @@ npm run dev
 
 ```
 omu/
-├── database/              # 数据库模块
+├── backend/               # Web版本 - 后端服务
+│   └── ...
+├── frontend/              # Web版本 - 前端应用
+│   └── ...
+├── cli/                   # 命令行版本
+│   ├── agent/             # Agent核心模块
+│   │   ├── __init__.py
+│   │   ├── schemas.py     # JSON Schema和Prompt定义
+│   │   ├── receipt_analyzer.py # 账单分析器
+│   │   └── accounting_agent.py # Agent主流程
+│   ├── database/          # 数据库模块
+│   │   ├── __init__.py
+│   │   ├── models.py      # Account数据模型
+│   │   └── operations.py  # 数据库CRUD操作
+│   ├── config/            # 配置模块
+│   │   ├── __init__.py
+│   │   └── settings.py    # 配置管理
+│   ├── utils/             # 工具模块
+│   │   ├── __init__.py
+│   │   └── validators.py  # 数据验证
 │   ├── __init__.py
-│   ├── models.py          # Account数据模型
-│   └── operations.py      # 数据库CRUD操作
-├── agent/                 # Agent核心模块
-│   ├── __init__.py
-│   ├── schemas.py         # JSON Schema和Prompt定义
-│   ├── receipt_analyzer.py # 账单分析器
-│   └── accounting_agent.py # Agent主流程
-├── config/                # 配置模块
-│   ├── __init__.py
-│   └── settings.py        # 配置管理
-├── utils/                 # 工具模块
-│   ├── __init__.py
-│   └── validators.py      # 数据验证
-├── main.py                # 主入口（CLI界面）
+│   ├── cli.py             # 主入口
+│   └── README.md          # CLI版本文档
 ├── requirements.txt       # 项目依赖
 ├── .env.example           # 环境变量模板
 ├── .gitignore             # Git忽略配置
@@ -127,7 +134,8 @@ omu/
 
 4. **运行程序**
    ```bash
-   python main.py
+   cd cli
+   python cli.py
    ```
 
 ## 使用说明
@@ -218,7 +226,11 @@ omu/
 
 ### Python API调用
 
-除了交互式界面，你也可以直接在代码中使用：
+除了交互式界面，你也可以直接在代码中使用（需先进入cli目录）：
+
+```bash
+cd cli
+```
 
 ```python
 from agent.accounting_agent import AccountingAgent

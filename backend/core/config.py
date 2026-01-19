@@ -14,14 +14,14 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # API密钥
-    ZHIPU_API_KEY: str
+    ZHIPU_API_KEY: Optional[str] = None
     VISION_MODEL: str = "glm-4.6v"
 
     # 数据库配置
     DB_PATH: str = "accounting.db"
 
     # JWT配置
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = "cxx_zhizhang"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7天
 

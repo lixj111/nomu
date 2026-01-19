@@ -1,7 +1,12 @@
 """自动记账Agent主入口"""
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
+
+# 将cli目录添加到Python路径
+sys.path.insert(0, str(Path(__file__).parent))
+
 from agent.accounting_agent import AccountingAgent
 
 load_dotenv()
