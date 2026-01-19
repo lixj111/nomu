@@ -243,10 +243,13 @@ const handleLogin = async () => {
     await userStore.login(loginForm.value.username, loginForm.value.password)
     message.success('登录成功')
     showLoginModal.value = false
+    // 登录成功后清空表单
     loginForm.value = { username: '', password: '', email: '', confirmPassword: '' }
     // 登录成功后加载账本列表
     ledgerStore.fetchLedgers()
   } catch (error) {
+    // 登录失败：保留用户名，清空密码
+    loginForm.value.password = ''
     message.error(error.message || '登录失败')
   }
 }
@@ -270,10 +273,14 @@ const handleRegister = async () => {
     )
     message.success('注册成功')
     showLoginModal.value = false
+    // 注册成功后清空表单
     loginForm.value = { username: '', password: '', email: '', confirmPassword: '' }
     // 注册成功后加载账本列表
     ledgerStore.fetchLedgers()
   } catch (error) {
+    // 注册失败：保留用户名和邮箱，清空密码
+    loginForm.value.password = ''
+    loginForm.value.confirmPassword = ''
     message.error(error.message || '注册失败')
   }
 }

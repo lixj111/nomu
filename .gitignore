@@ -192,3 +192,5 @@ temp/
 
 .claude/
 node_modules/
+
+bash.exe.stackdump

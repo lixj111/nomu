@@ -32,13 +32,14 @@ async def upload_receipt(
     try:
         # 保存图片
         image_service = ImageService()
-        image_path = await image_service.save_upload_file(file)
+        relative_path = await image_service.save_upload_file(file)  # 相对路径，用于数据库存储和前端访问
+        full_path = image_service.get_full_path(relative_path)  # 绝对路径，用于AI识别
 
         # 识别账单
         receipt_service = ReceiptService(db, api_key=settings.ZHIPU_API_KEY)
-        account = await receipt_service.recognize_receipt(image_path, ledger_id)
+        account = await receipt_service.recognize_receipt(full_path, relative_path, ledger_id)
 
-        return ResponseModel(
+        result = ResponseModel(
             code=200,
             message="识别成功",
             data=AccountResponse(
@@ -59,6 +60,7 @@ async def upload_receipt(
                 updated_at=account.updated_at
             )
         )
+        return result
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -96,16 +98,19 @@ async def batch_upload_receipts(
 
     try:
         image_service = ImageService()
-        image_paths = []
+        relative_paths = []
+        full_paths = []
 
         # 保存所有图片
         for file in files:
-            image_path = await image_service.save_upload_file(file)
-            image_paths.append(image_path)
+            relative_path = await image_service.save_upload_file(file)
+            full_path = image_service.get_full_path(relative_path)
+            relative_paths.append(relative_path)
+            full_paths.append(full_path)
 
         # 批量识别
         receipt_service = ReceiptService(db, api_key=settings.ZHIPU_API_KEY)
-        accounts = await receipt_service.batch_recognize(image_paths, ledger_id)
+        accounts = await receipt_service.batch_recognize(full_paths, relative_paths, ledger_id)
 
         # 转换为响应格式
         result = [

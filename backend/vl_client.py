@@ -214,7 +214,6 @@ class VisionAnalyzer:
             json_str = content.strip()
 
         print(json_str)
-        print(type(json_str))
 
         # 修改后
         import re

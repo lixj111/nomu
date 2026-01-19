@@ -164,28 +164,28 @@ async def create_account(
         notes=account_data.notes
     )
 
-    account_id = db.add_account(account)
-    account.id = account_id
+    # add_account 现在返回完整的 Account 对象（包含 id, created_at, updated_at）
+    created_account = db.add_account(account)
 
     return ResponseModel(
         code=201,
         message="创建成功",
         data=AccountResponse(
-            id=account.id,
-            ledger_id=account.ledger_id,
-            transaction_date=account.transaction_date,
-            amount=float(account.amount),
-            item_name=account.item_name,
-            category=account.category,
-            merchant_name=account.merchant_name,
-            payment_method=account.payment_method,
-            transaction_type=account.transaction_type,
-            notes=account.notes,
-            image_url=account.image_path,
-            receipt_type=account.receipt_type,
-            confidence=account.confidence,
-            created_at=account.created_at,
-            updated_at=account.updated_at
+            id=created_account.id,
+            ledger_id=created_account.ledger_id,
+            transaction_date=created_account.transaction_date,
+            amount=float(created_account.amount),
+            item_name=created_account.item_name,
+            category=created_account.category,
+            merchant_name=created_account.merchant_name,
+            payment_method=created_account.payment_method,
+            transaction_type=created_account.transaction_type,
+            notes=created_account.notes,
+            image_url=created_account.image_path,
+            receipt_type=created_account.receipt_type,
+            confidence=created_account.confidence,
+            created_at=created_account.created_at,
+            updated_at=created_account.updated_at
         )
     )
 

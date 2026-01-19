@@ -11,7 +11,7 @@ from api.v1 import auth, ledgers, accounts, upload, statistics
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="智账-基于AI的自动记账系统API",
+    description="智账-AI自动记账系统API",
     debug=settings.DEBUG
 )
 
@@ -58,9 +58,15 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+
+    # 计算超时时间（秒）
+    timeout_keep_alive = settings.API_TIMEOUT
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.DEBUG
+        reload=settings.DEBUG,
+        timeout_keep_alive=timeout_keep_alive,
+        limit_concurrency=10
     )

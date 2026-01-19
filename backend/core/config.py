@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # 识别配置
     CONFIDENCE_THRESHOLD: float = 0.7
 
+    # HTTP 超时配置
+    API_TIMEOUT: int = 300  # API 请求超时时间（秒），默认 5 分钟
+
     class Config:
         env_file = ".env"
         case_sensitive = True

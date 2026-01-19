@@ -4,41 +4,50 @@
     <a-layout class="page-layout">
       <a-layout-header class="page-header">
         <LedgerSelector @change="handleLedgerChange" />
-        <a-button type="primary" @click="showAddModal = true">
+        <a-button type="primary" @click="openAddModal">
           记一笔
         </a-button>
       </a-layout-header>
 
       <a-layout-content class="page-content">
-        <!-- 账单列表 -->
+        <!-- 账单列表（按日期分组） -->
         <a-spin :spinning="loading">
-          <a-list
-            :data-source="accounts"
-            :pagination="pagination"
-            class="account-list"
-          >
-            <template #renderItem="{ item }">
-              <a-list-item>
+          <div v-if="groupedAccounts.length === 0" class="empty-state">
+            <a-empty description="暂无账单，点击右上角记一笔或上传账单" />
+          </div>
+          <div v-else class="account-groups">
+            <div
+              v-for="group in groupedAccounts"
+              :key="group.date"
+              class="date-group"
+            >
+              <div class="date-header">
+                <span class="date-title">{{ group.dateTitle }}</span>
+                <span class="date-summary">
+                  收 {{ group.income.toFixed(2) }} 支 {{ group.expense.toFixed(2) }}
+                </span>
+              </div>
+              <div class="date-accounts">
                 <AccountCard
-                  :account="item"
+                  v-for="account in group.accounts"
+                  :key="account.id"
+                  :account="account"
                   @click="showDetail"
+                  @edit="handleEdit"
+                  @delete="handleDelete"
                 />
-              </a-list-item>
-            </template>
-          </a-list>
+              </div>
+            </div>
+          </div>
         </a-spin>
       </a-layout-content>
 
-      <!-- 悬浮上传按钮 -->
-      <a-float-button
-        type="primary"
-        :style="{ right: '24px', bottom: '80px' }"
-        @click="showUploadModal = true"
-      >
+      <!-- 可拖动悬浮上传按钮 -->
+      <DraggableFloatButton @click="showUploadModal = true">
         <template #icon>
           <CameraOutlined />
         </template>
-      </a-float-button>
+      </DraggableFloatButton>
     </a-layout>
 
     <!-- 上传弹窗 -->
@@ -51,20 +60,24 @@
       <ImageUploader @uploaded="handleUploadSuccess" />
     </a-modal>
 
-    <!-- 添加账单弹窗 -->
+    <!-- 添加/编辑账单弹窗 -->
     <a-drawer
-      v-model:open="showAddModal"
-      title="记一笔"
+      v-model:open="showFormModal"
+      :title="editingAccount ? '编辑账单' : '记一笔'"
       placement="right"
       :width="400"
     >
-      <AccountForm @success="handleAddSuccess" @cancel="showAddModal = false" />
+      <AccountForm
+        :account="editingAccount"
+        @success="handleFormSuccess"
+        @cancel="showFormModal = false"
+      />
     </a-drawer>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { CameraOutlined } from '@ant-design/icons-vue'
 import { useAccountStore, useLedgerStore } from '@/stores'
@@ -72,22 +85,71 @@ import AccountCard from '@/components/AccountCard.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import AccountForm from '@/components/AccountForm.vue'
 import LedgerSelector from '@/components/LedgerSelector.vue'
+import DraggableFloatButton from '@/components/DraggableFloatButton.vue'
+import dayjs from 'dayjs'
 
 const accountStore = useAccountStore()
 const ledgerStore = useLedgerStore()
 
 const loading = ref(false)
 const showUploadModal = ref(false)
-const showAddModal = ref(false)
+const showFormModal = ref(false)
+const editingAccount = ref(null)
 
 const accounts = computed(() => accountStore.accounts)
 
-const pagination = computed(() => ({
-  pageSize: 20,
-  total: accounts.value.length,
-  showSizeChanger: false,
-  showTotal: (total) => `共 ${total} 条`
-}))
+// 星期数组
+const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+// 按日期分组账单
+const groupedAccounts = computed(() => {
+  const groups = {}
+
+  accounts.value.forEach(account => {
+    const date = account.transaction_date
+    if (!groups[date]) {
+      groups[date] = {
+        date,
+        accounts: [],
+        income: 0,
+        expense: 0
+      }
+    }
+    groups[date].accounts.push(account)
+
+    // 计算收支
+    if (account.transaction_type === '收入') {
+      groups[date].income += parseFloat(account.amount)
+    } else {
+      groups[date].expense += parseFloat(account.amount)
+    }
+  })
+
+  // 转换为数组并添加日期标题
+  const result = Object.values(groups).map(group => {
+    const dateObj = dayjs(group.date)
+    const today = dayjs()
+    const yesterday = today.subtract(1, 'day')
+    const weekDay = weekDays[dateObj.day()]
+
+    let dateTitle = ''
+    if (dateObj.isSame(today, 'day')) {
+      dateTitle = `今天 ${weekDay}`
+    } else if (dateObj.isSame(yesterday, 'day')) {
+      dateTitle = `昨天 ${weekDay}`
+    } else {
+      dateTitle = `${dateObj.format('M月D日')} ${weekDay}`
+    }
+
+    return {
+      ...group,
+      dateTitle
+    }
+  })
+
+  // 按日期降序排序
+  return result.sort((a, b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf())
+})
 
 onMounted(() => {
   if (ledgerStore.currentLedgerId) {
@@ -120,15 +182,43 @@ const showDetail = (account) => {
   })
 }
 
+const openAddModal = () => {
+  editingAccount.value = null
+  showFormModal.value = true
+}
+
+const handleEdit = (account) => {
+  editingAccount.value = account
+  showFormModal.value = true
+}
+
+const handleDelete = (account) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除"${account.item_name}"这条账单吗？`,
+    onOk: async () => {
+      try {
+        await accountStore.deleteAccount(account.id)
+        message.success('删除成功')
+        loadAccounts()
+      } catch (error) {
+        message.error(error.message || '删除失败')
+      }
+    }
+  })
+}
+
 const handleUploadSuccess = (result) => {
+  console.log('[Ledger] handleUploadSuccess 被调用，结果:', result)
   showUploadModal.value = false
   message.success('识别成功')
   loadAccounts()
 }
 
-const handleAddSuccess = () => {
-  showAddModal.value = false
-  message.success('添加成功')
+const handleFormSuccess = () => {
+  showFormModal.value = false
+  editingAccount.value = null
+  message.success(editingAccount.value ? '更新成功' : '添加成功')
   loadAccounts()
 }
 </script>
@@ -164,17 +254,55 @@ const handleAddSuccess = () => {
   padding: 16px;
 }
 
-.account-list {
-  background: #fff;
-  border-radius: 8px;
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
 }
 
-.account-list :deep(.ant-list-item) {
-  padding: 0;
+.account-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.date-group {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.date-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fafafa;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.account-list :deep(.ant-list-item:last-child) {
+.date-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.date-summary {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.date-accounts {
+  padding: 0;
+}
+
+.date-accounts :deep(.account-card:first-child) {
+  border-top: none;
+}
+
+.date-accounts :deep(.account-card:last-child) {
   border-bottom: none;
 }
 </style>

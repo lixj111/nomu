@@ -20,6 +20,7 @@ class AccountBase(BaseModel):
 
 class AccountCreate(AccountBase):
     """创建账单请求"""
+    ledger_id: int = Field(..., description="账本ID")
 
 
 class AccountUpdate(BaseModel):

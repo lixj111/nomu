@@ -2,7 +2,7 @@
 import sqlite3
 from contextlib import contextmanager
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
 from .models import Account, Ledger, User
@@ -126,8 +126,8 @@ class DatabaseManager:
             # 如果迁移失败，忽略（表可能已经是新结构）
             pass
 
-    def add_account(self, account: Account) -> int:
-        """添加账目记录"""
+    def add_account(self, account: Account) -> Account:
+        """添加账目记录并返回完整的Account对象"""
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 INSERT INTO accounts (
@@ -149,7 +149,15 @@ class DatabaseManager:
                 account.receipt_type,
                 account.confidence
             ))
-            return cursor.lastrowid
+            account_id = cursor.lastrowid
+
+        # 查询并返回完整的Account对象（包含created_at和updated_at）
+        if account_id is None:
+            raise ValueError("Failed to create account")
+        result = self.get_account_by_id(account_id)
+        if result is None:
+            raise ValueError(f"Failed to retrieve created account with id {account_id}")
+        return result
 
     def get_account_by_id(self, account_id: int) -> Optional[Account]:
         """根据ID查询账目"""
@@ -329,11 +337,25 @@ class DatabaseManager:
             }
 
     @staticmethod
+    def _parse_beijing_time(dt_str):
+        """解析时间字符串并转换为北京时间"""
+        if not dt_str:
+            return None
+        # 定义北京时区（UTC+8）
+        BEIJING_TZ = timezone(timedelta(hours=8))
+        # SQLite返回的时间不带时区，解析为UTC时间
+        dt = datetime.fromisoformat(dt_str)
+        # 如果时间没有时区信息，假设是UTC时间，转换为北京时间
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(BEIJING_TZ)
+
+    @staticmethod
     def _row_to_account(row) -> Account:
         """将数据库行转换为Account对象"""
         return Account(
             id=row["id"],
-            ledger_id=row.get("ledger_id"),
+            ledger_id=row["ledger_id"],
             transaction_date=row["transaction_date"],
             amount=Decimal(str(row["amount"])),
             item_name=row["item_name"],
@@ -345,8 +367,8 @@ class DatabaseManager:
             image_path=row["image_path"],
             receipt_type=row["receipt_type"],
             confidence=row["confidence"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None,
+            created_at=DatabaseManager._parse_beijing_time(row["created_at"]),
+            updated_at=DatabaseManager._parse_beijing_time(row["updated_at"]),
             is_deleted=bool(row["is_deleted"])
         )
 
@@ -390,8 +412,8 @@ class DatabaseManager:
             email=row["email"],
             hashed_password=row["hashed_password"],
             is_active=bool(row["is_active"]),
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None
+            created_at=DatabaseManager._parse_beijing_time(row["created_at"]),
+            updated_at=DatabaseManager._parse_beijing_time(row["updated_at"])
         )
 
     # ========== 账本相关方法 ==========
@@ -489,8 +511,8 @@ class DatabaseManager:
             icon=row["icon"],
             color=row["color"],
             is_default=bool(row["is_default"]),
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
-            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None,
+            created_at=DatabaseManager._parse_beijing_time(row["created_at"]),
+            updated_at=DatabaseManager._parse_beijing_time(row["updated_at"]),
             is_deleted=bool(row["is_deleted"])
         )
 

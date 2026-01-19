@@ -16,13 +16,33 @@
     >
       {{ account.transaction_type === '支出' ? '-' : '+' }}¥{{ account.amount }}
     </div>
-    <div class="card-date">{{ formatDate(account.transaction_date) }}</div>
+    <div class="card-actions" @click.stop>
+      <a-dropdown :trigger="['click']">
+        <a-button type="text" size="small">
+          <template #icon>
+            <MoreOutlined />
+          </template>
+        </a-button>
+        <template #overlay>
+          <a-menu>
+            <a-menu-item @click="$emit('edit', account)">
+              <EditOutlined />
+              编辑
+            </a-menu-item>
+            <a-menu-item @click="$emit('delete', account)">
+              <DeleteOutlined />
+              删除
+            </a-menu-item>
+          </a-menu>
+        </template>
+      </a-dropdown>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import dayjs from 'dayjs'
+import { MoreOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 
 const props = defineProps({
   account: {
@@ -31,7 +51,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['click'])
+defineEmits(['click', 'edit', 'delete'])
 
 const categoryColors = {
   '食品餐饮': '#ff6b6b',
@@ -47,16 +67,6 @@ const categoryColors = {
 const categoryColor = computed(() => {
   return categoryColors[props.account.category] || '#1890ff'
 })
-
-const formatDate = (dateStr) => {
-  const date = dayjs(dateStr)
-  const today = dayjs()
-  const yesterday = today.subtract(1, 'day')
-
-  if (date.isSame(today, 'day')) return '今天'
-  if (date.isSame(yesterday, 'day')) return '昨天'
-  return date.format('MM-DD')
-}
 </script>
 
 <style scoped>
@@ -109,7 +119,7 @@ const formatDate = (dateStr) => {
 .card-amount {
   font-size: 18px;
   font-weight: bold;
-  margin-right: 12px;
+  margin-right: 8px;
 }
 
 .card-amount.expense {
@@ -120,9 +130,8 @@ const formatDate = (dateStr) => {
   color: #52c41a;
 }
 
-.card-date {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
+.card-actions {
+  display: flex;
+  align-items: center;
 }
 </style>

@@ -66,6 +66,14 @@ import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { useAccountStore, useLedgerStore } from '@/stores'
 
+const props = defineProps({
+  // 编辑模式：传入要编辑的账单对象
+  account: {
+    type: Object,
+    default: null
+  }
+})
+
 const emit = defineEmits(['success', 'cancel'])
 
 const accountStore = useAccountStore()
@@ -98,6 +106,26 @@ const formDate = computed({
   }
 })
 
+// 监听 account prop 变化，用于编辑模式
+watch(() => props.account, (newAccount) => {
+  if (newAccount) {
+    form.transaction_type = newAccount.transaction_type || '支出'
+    form.amount = newAccount.amount
+    form.item_name = newAccount.item_name || ''
+    form.category = newAccount.category || null
+    form.transaction_date = newAccount.transaction_date || new Date().toISOString().split('T')[0]
+    form.notes = newAccount.notes || ''
+  } else {
+    // 重置表单
+    form.transaction_type = '支出'
+    form.amount = null
+    form.item_name = ''
+    form.category = null
+    form.transaction_date = new Date().toISOString().split('T')[0]
+    form.notes = ''
+  }
+}, { immediate: true })
+
 const handleSubmit = async () => {
   if (!form.amount || !form.item_name) {
     message.warning('请填写必填项')
@@ -105,10 +133,21 @@ const handleSubmit = async () => {
   }
 
   try {
-    await accountStore.createAccount({
-      ledger_id: ledgerStore.currentLedgerId,
-      ...form
-    })
+    if (props.account) {
+      // 编辑模式
+      await accountStore.updateAccount(props.account.id, {
+        ledger_id: ledgerStore.currentLedgerId,
+        ...form
+      })
+      message.success('更新成功')
+    } else {
+      // 新建模式
+      await accountStore.createAccount({
+        ledger_id: ledgerStore.currentLedgerId,
+        ...form
+      })
+      message.success('添加成功')
+    }
     emit('success')
   } catch (error) {
     message.error(error.message || '保存失败')

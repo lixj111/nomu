@@ -1,6 +1,5 @@
 """图片处理服务"""
 import os
-import uuid
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -32,6 +31,28 @@ class ImageService:
                 detail=f"图片过大，最大支持 {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
             )
 
+    def _get_next_file_number(self, date_dir: Path, ext: str) -> int:
+        """获取下一个可用的文件编号"""
+        # 获取该日期目录下所有相同扩展名的文件
+        existing_files = list(date_dir.glob(f"*{ext}"))
+
+        if not existing_files:
+            return 1
+
+        # 提取所有文件名中的数字编号
+        numbers = []
+        for f in existing_files:
+            # 文件名格式: 1.png, 2.png, 等
+            try:
+                num = int(f.stem)
+                numbers.append(num)
+            except ValueError:
+                # 如果文件名不是数字，跳过
+                continue
+
+        # 返回最大编号 + 1
+        return max(numbers) + 1 if numbers else 1
+
     async def save_upload_file(self, file: UploadFile) -> str:
         """保存上传的文件"""
         # 读取文件内容
@@ -40,31 +61,39 @@ class ImageService:
         # 验证文件
         self.validate_image(file.filename or "image.jpg", len(content))
 
-        # 生成唯一文件名
+        # 获取文件扩展名
         ext = Path(file.filename or "image.jpg").suffix.lower()
-        unique_filename = f"{uuid.uuid4().hex}{ext}"
 
         # 按日期组织目录
         date_path = datetime.now().strftime("%Y%m%d")
         date_dir = self.upload_dir / date_path
         date_dir.mkdir(exist_ok=True)
 
+        # 获取下一个递增编号
+        file_number = self._get_next_file_number(date_dir, ext)
+        unique_filename = f"{file_number}{ext}"
+
         # 保存文件
         file_path = date_dir / unique_filename
         with open(file_path, "wb") as f:
             f.write(content)
 
-        # 返回相对路径（用于访问）
+        # 返回相对于 static 目录的路径（用于访问）
+        # 例如: uploads/20260119/1.png
         return f"uploads/{date_path}/{unique_filename}"
 
-    def get_full_path(self, relative_path: str) -> Path:
+    def get_full_path(self, relative_path: str) -> str:
         """获取文件的完整路径"""
-        return self.upload_dir.parent / relative_path
+        # relative_path 格式: uploads/20260119/xxx.png
+        # self.upload_dir 是 backend/static/uploads
+        # 需要回到 backend/static，然后拼接 relative_path
+        static_dir = self.upload_dir.parent  # backend/static
+        return str(static_dir / relative_path)
 
     def delete_file(self, relative_path: str) -> bool:
         """删除文件"""
         try:
-            file_path = self.get_full_path(relative_path)
+            file_path = Path(self.get_full_path(relative_path))
             if file_path.exists():
                 file_path.unlink()
                 return True
