@@ -1,67 +1,69 @@
 <template>
   <div class="account-form">
-    <div class="form-header">
-      <span>记一笔</span>
-      <CloseOutlined @click="$emit('cancel')" />
-    </div>
+    <a-form layout="vertical" :model="form">
+      <a-form-item label="类型" required>
+        <a-radio-group v-model:value="form.transaction_type" button-style="solid">
+          <a-radio-button value="支出">支出</a-radio-button>
+          <a-radio-button value="收入">收入</a-radio-button>
+        </a-radio-group>
+      </a-form-item>
 
-    <Form :model="form" layout="vertical">
-      <FormItem label="类型">
-        <RadioGroup v-model:value="form.transaction_type">
-          <Radio value="支出">支出</Radio>
-          <Radio value="收入">收入</Radio>
-        </RadioGroup>
-      </FormItem>
-
-      <FormItem label="金额">
-        <Input
+      <a-form-item label="金额" required>
+        <a-input-number
           v-model:value="form.amount"
-          type="number"
+          :precision="2"
+          :min="0"
           placeholder="请输入金额"
+          style="width: 100%"
         />
-      </FormItem>
+      </a-form-item>
 
-      <FormItem label="商品/服务名称">
-        <Input
+      <a-form-item label="商品/服务名称" required>
+        <a-input
           v-model:value="form.item_name"
           placeholder="请输入商品或服务名称"
         />
-      </FormItem>
+      </a-form-item>
 
-      <FormItem label="分类">
-        <Select v-model:value="form.category" placeholder="选择分类">
-          <SelectOption v-for="cat in categories" :key="cat" :value="cat">
-            {{ cat }}
-          </SelectOption>
-        </Select>
-      </FormItem>
-
-      <FormItem label="日期">
-        <Input
-          v-model:value="form.transaction_date"
-          type="date"
+      <a-form-item label="分类">
+        <a-select
+          v-model:value="form.category"
+          placeholder="选择分类"
+          :options="categoryOptions"
         />
-      </FormItem>
+      </a-form-item>
 
-      <FormItem label="备注">
-        <Textarea
+      <a-form-item label="日期">
+        <a-date-picker
+          v-model:value="formDate"
+          format="YYYY-MM-DD"
+          placeholder="选择日期"
+          style="width: 100%"
+        />
+      </a-form-item>
+
+      <a-form-item label="备注">
+        <a-textarea
           v-model:value="form.notes"
           placeholder="选填"
           :rows="3"
         />
-      </FormItem>
+      </a-form-item>
 
-      <div class="form-actions">
-        <Button block @click="$emit('cancel')">取消</Button>
-        <Button block type="primary" @click="handleSubmit">保存</Button>
-      </div>
-    </Form>
+      <a-form-item>
+        <a-space style="width: 100%">
+          <a-button @click="$emit('cancel')">取消</a-button>
+          <a-button type="primary" @click="handleSubmit">保存</a-button>
+        </a-space>
+      </a-form-item>
+    </a-form>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { Form, FormItem, Input, Radio, RadioGroup, Select, SelectOption, Textarea, Button, Toast, CloseOutlined } from 'ant-design-mobile-vue'
+import { ref, reactive, computed, watch } from 'vue'
+import { message } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import { useAccountStore, useLedgerStore } from '@/stores'
 
 const emit = defineEmits(['success', 'cancel'])
@@ -69,20 +71,36 @@ const emit = defineEmits(['success', 'cancel'])
 const accountStore = useAccountStore()
 const ledgerStore = useLedgerStore()
 
-const categories = ['食品餐饮', '出行交通', '购物消费', '休闲娱乐', '居家生活', '文化教育', '健康医疗', '其他']
+const categoryOptions = [
+  '食品餐饮',
+  '出行交通',
+  '购物消费',
+  '休闲娱乐',
+  '居家生活',
+  '文化教育',
+  '健康医疗',
+  '其他'
+].map(cat => ({ label: cat, value: cat }))
 
 const form = reactive({
   transaction_type: '支出',
-  amount: '',
+  amount: null,
   item_name: '',
-  category: '',
+  category: null,
   transaction_date: new Date().toISOString().split('T')[0],
   notes: ''
 })
 
+const formDate = computed({
+  get: () => form.transaction_date ? dayjs(form.transaction_date) : null,
+  set: (val) => {
+    form.transaction_date = val ? val.format('YYYY-MM-DD') : ''
+  }
+})
+
 const handleSubmit = async () => {
   if (!form.amount || !form.item_name) {
-    Toast.show('请填写必填项')
+    message.warning('请填写必填项')
     return
   }
 
@@ -93,7 +111,7 @@ const handleSubmit = async () => {
     })
     emit('success')
   } catch (error) {
-    Toast.show(error.message || '保存失败')
+    message.error(error.message || '保存失败')
   }
 }
 </script>
@@ -103,20 +121,27 @@ const handleSubmit = async () => {
   padding: 16px;
   height: 100%;
   overflow-y: auto;
+  background: #fff;
 }
 
-.form-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  font-size: 18px;
-  font-weight: bold;
+:deep(.ant-radio-group) {
+  width: 100%;
 }
 
-.form-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 24px;
+:deep(.ant-radio-button-wrapper) {
+  flex: 1;
+  text-align: center;
+}
+
+:deep(.ant-space) {
+  width: 100%;
+}
+
+:deep(.ant-space-item) {
+  flex: 1;
+}
+
+:deep(.ant-btn) {
+  width: 100%;
 }
 </style>

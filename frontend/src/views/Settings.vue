@@ -1,97 +1,189 @@
 <template>
   <div class="settings-page">
     <!-- 用户信息 -->
-    <div class="user-info">
-      <div class="user-avatar">{{ userStore.user?.username?.[0]?.toUpperCase() || 'U' }}</div>
-      <div class="user-details">
-        <div class="user-name">{{ userStore.user?.username || '未登录' }}</div>
-        <div class="user-email">{{ userStore.user?.email || '点击登录' }}</div>
-      </div>
-    </div>
+    <a-card class="user-info" :bordered="false" @click="handleUserClick">
+      <a-space align="center" :size="16" style="cursor: pointer">
+        <a-avatar :size="60" class="user-avatar">
+          {{ userStore.user?.username?.[0]?.toUpperCase() || 'U' }}
+        </a-avatar>
+        <div class="user-details">
+          <div class="user-name">{{ userStore.user?.username || '未登录' }}</div>
+          <div class="user-email">{{ userStore.user?.email || '点击登录' }}</div>
+        </div>
+      </a-space>
+    </a-card>
 
     <!-- 账本管理 -->
-    <CellGroup title="账本管理">
-      <Cell
-        title="我的账本"
-        is-link
-        @click="showLedgerManager = true"
-      />
-      <Cell
-        title="创建新账本"
-        is-link
-        @click="showCreateLedger = true"
-      />
-    </CellGroup>
+    <a-card title="账本管理" class="section-card" :bordered="false">
+      <a-list :data-source="ledgerActions" class="action-list">
+        <template #renderItem="{ item }">
+          <a-list-item @click="item.onClick" class="action-item">
+            <a-list-item-meta>
+              <template #title>{{ item.title }}</template>
+            </a-list-item-meta>
+            <template #actions>
+              <RightOutlined />
+            </template>
+          </a-list-item>
+        </template>
+      </a-list>
+    </a-card>
 
     <!-- 数据管理 -->
-    <CellGroup title="数据管理">
-      <Cell
-        title="导出数据"
-        is-link
-        @click="exportData"
-      />
-    </Cell>
+    <a-card title="数据管理" class="section-card" :bordered="false">
+      <a-list :data-source="dataActions" class="action-list">
+        <template #renderItem="{ item }">
+          <a-list-item @click="item.onClick" class="action-item">
+            <a-list-item-meta>
+              <template #title>{{ item.title }}</template>
+            </a-list-item-meta>
+            <template #actions>
+              <RightOutlined />
+            </template>
+          </a-list-item>
+        </template>
+      </a-list>
+    </a-card>
 
     <!-- 其他 -->
-    <CellGroup title="其他">
-      <Cell
-        title="关于"
-        is-link
-        @click="showAbout"
-      />
-    </CellGroup>
+    <a-card title="其他" class="section-card" :bordered="false">
+      <a-list :data-source="otherActions" class="action-list">
+        <template #renderItem="{ item }">
+          <a-list-item @click="item.onClick" class="action-item">
+            <a-list-item-meta>
+              <template #title>{{ item.title }}</template>
+            </a-list-item-meta>
+            <template #actions>
+              <RightOutlined />
+            </template>
+          </a-list-item>
+        </template>
+      </a-list>
+    </a-card>
 
     <!-- 账本管理弹窗 -->
-    <Popup v-model:show="showLedgerManager" position="bottom" :style="{ height: '60%' }">
-      <div class="ledger-manager">
-        <div class="manager-header">
-          <span>账本管理</span>
-          <CloseOutlined @click="showLedgerManager = false" />
-        </div>
-        <div class="ledger-list">
-          <div
-            v-for="ledger in ledgerStore.ledgers"
-            :key="ledger.id"
-            class="ledger-item"
-          >
-            <div class="ledger-info">
-              <span class="ledger-name">{{ ledger.name }}</span>
-              <span v-if="ledger.is_default" class="default-badge">默认</span>
-            </div>
-            <div class="ledger-actions">
-              <Button
-                v-if="!ledger.is_default"
-                size="mini"
-                @click="setDefaultLedger(ledger.id)"
-              >
-                设为默认
-              </Button>
-              <Button
-                v-if="!ledger.is_default"
-                size="mini"
-                color="danger"
-                @click="confirmDeleteLedger(ledger)"
-              >
-                删除
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Popup>
+    <a-modal
+      v-model:open="showLedgerManager"
+      title="账本管理"
+      :footer="null"
+      width="90%"
+    >
+      <a-list :data-source="ledgerStore.ledgers" class="ledger-list">
+        <template #renderItem="{ item }">
+          <a-list-item class="ledger-item">
+            <a-list-item-meta>
+              <template #title>
+                <a-space>
+                  {{ item.name }}
+                  <a-tag v-if="item.is_default" color="blue">默认</a-tag>
+                </a-space>
+              </template>
+            </a-list-item-meta>
+            <template #actions>
+              <a-space>
+                <a-button
+                  v-if="!item.is_default"
+                  size="small"
+                  @click="setDefaultLedger(item.id)"
+                >
+                  设为默认
+                </a-button>
+                <a-button
+                  v-if="!item.is_default"
+                  size="small"
+                  danger
+                  @click="confirmDeleteLedger(item)"
+                >
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+          </a-list-item>
+        </template>
+      </a-list>
+    </a-modal>
 
     <!-- 创建账本弹窗 -->
-    <Dialog v-model:visible="showCreateLedger" title="创建账本" :onConfirm="createLedger">
-      <Input v-model="newLedger.name" placeholder="账本名称" />
-      <Input v-model="newLedger.description" placeholder="账本描述（可选）" style="margin-top: 12px" />
-    </Dialog>
+    <a-modal
+      v-model:open="showCreateLedger"
+      title="创建账本"
+      @ok="createLedger"
+      ok-text="创建"
+      cancel-text="取消"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="账本名称" required>
+          <a-input
+            v-model:value="newLedger.name"
+            placeholder="请输入账本名称"
+          />
+        </a-form-item>
+        <a-form-item label="账本描述">
+          <a-textarea
+            v-model:value="newLedger.description"
+            placeholder="请输入账本描述（可选）"
+            :rows="3"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 登录/注册弹窗 -->
+    <a-modal
+      v-model:open="showLoginModal"
+      :title="isLoginMode ? '登录' : '注册'"
+      @ok="isLoginMode ? handleLogin : handleRegister"
+      :ok-text="isLoginMode ? '登录' : '注册'"
+      cancel-text="取消"
+      width="400"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="用户名" required>
+          <a-input
+            v-model:value="loginForm.username"
+            placeholder="请输入用户名"
+            @pressEnter="isLoginMode ? handleLogin() : handleRegister()"
+          />
+        </a-form-item>
+        <a-form-item v-if="!isLoginMode" label="邮箱">
+          <a-input
+            v-model:value="loginForm.email"
+            placeholder="请输入邮箱（可选）"
+            @pressEnter="handleRegister"
+          />
+        </a-form-item>
+        <a-form-item label="密码" required>
+          <a-input-password
+            v-model:value="loginForm.password"
+            placeholder="请输入密码"
+            @pressEnter="isLoginMode ? handleLogin() : handleRegister()"
+          />
+        </a-form-item>
+        <a-form-item v-if="!isLoginMode" label="确认密码" required>
+          <a-input-password
+            v-model:value="loginForm.confirmPassword"
+            placeholder="请再次输入密码"
+            @pressEnter="handleRegister"
+          />
+        </a-form-item>
+      </a-form>
+      <template #footer>
+        <a-button @click="showLoginModal = false">取消</a-button>
+        <a-button type="link" @click="toggleMode">
+          {{ isLoginMode ? '没有账号？去注册' : '已有账号？去登录' }}
+        </a-button>
+        <a-button type="primary" @click="isLoginMode ? handleLogin() : handleRegister()">
+          {{ isLoginMode ? '登录' : '注册' }}
+        </a-button>
+      </template>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { CellGroup, Cell, Button, Popup, Dialog, Input, Toast, Confirm } from 'ant-design-mobile-vue'
-import { CloseOutlined } from '@ant-design/icons-vue'
+import { ref, onMounted, h } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { RightOutlined } from '@ant-design/icons-vue'
 import { useUserStore, useLedgerStore } from '@/stores'
 
 const userStore = useUserStore()
@@ -99,7 +191,135 @@ const ledgerStore = useLedgerStore()
 
 const showLedgerManager = ref(false)
 const showCreateLedger = ref(false)
+const showLoginModal = ref(false)
+const isLoginMode = ref(true)
 const newLedger = ref({ name: '', description: '' })
+
+// 登录/注册表单
+const loginForm = ref({
+  username: '',
+  password: '',
+  email: '',
+  confirmPassword: ''
+})
+
+// 切换登录/注册模式
+const toggleMode = () => {
+  isLoginMode.value = !isLoginMode.value
+  // 清空表单
+  loginForm.value = {
+    username: '',
+    password: '',
+    email: '',
+    confirmPassword: ''
+  }
+}
+
+const handleUserClick = () => {
+  if (userStore.isLoggedIn()) {
+    // 已登录，显示登出确认
+    Modal.confirm({
+      title: '退出登录',
+      content: '确定要退出登录吗？',
+      onOk: () => {
+        userStore.logout()
+        message.success('已退出登录')
+        ledgerStore.fetchLedgers()
+      }
+    })
+  } else {
+    // 未登录，显示登录弹窗
+    showLoginModal.value = true
+  }
+}
+
+const handleLogin = async () => {
+  if (!loginForm.value.username || !loginForm.value.password) {
+    message.warning('请输入用户名和密码')
+    return
+  }
+
+  try {
+    await userStore.login(loginForm.value.username, loginForm.value.password)
+    message.success('登录成功')
+    showLoginModal.value = false
+    loginForm.value = { username: '', password: '', email: '', confirmPassword: '' }
+    // 登录成功后加载账本列表
+    ledgerStore.fetchLedgers()
+  } catch (error) {
+    message.error(error.message || '登录失败')
+  }
+}
+
+const handleRegister = async () => {
+  if (!loginForm.value.username || !loginForm.value.password) {
+    message.warning('请输入用户名和密码')
+    return
+  }
+
+  if (!isLoginMode.value && loginForm.value.password !== loginForm.value.confirmPassword) {
+    message.warning('两次输入的密码不一致')
+    return
+  }
+
+  try {
+    await userStore.register(
+      loginForm.value.username,
+      loginForm.value.password,
+      loginForm.value.email || ''
+    )
+    message.success('注册成功')
+    showLoginModal.value = false
+    loginForm.value = { username: '', password: '', email: '', confirmPassword: '' }
+    // 注册成功后加载账本列表
+    ledgerStore.fetchLedgers()
+  } catch (error) {
+    message.error(error.message || '注册失败')
+  }
+}
+
+const exportData = () => {
+  message.info('导出功能开发中')
+}
+
+const showAbout = () => {
+  Modal.info({
+    title: '关于',
+    content: h('div', [
+      h('p', '自动记账系统 v1.0.0'),
+      h('p', '基于AI的智能账单识别')
+    ])
+  })
+}
+
+const ledgerActions = [
+  {
+    title: '我的账本',
+    onClick: () => {
+      showLedgerManager.value = true
+    }
+  },
+  {
+    title: '创建新账本',
+    onClick: () => {
+      showCreateLedger.value = true
+    }
+  }
+]
+
+const dataActions = [
+  {
+    title: '导出数据',
+    onClick: exportData
+  }
+]
+
+const otherActions = [
+  {
+    title: '关于',
+    onClick: showAbout
+  }
+]
 
 onMounted(() => {
   ledgerStore.fetchLedgers()
@@ -107,22 +327,23 @@ onMounted(() => {
 
 const setDefaultLedger = async (id) => {
   await ledgerStore.setDefaultLedger(id)
-  Toast.show('已设置为默认账本')
+  message.success('已设置为默认账本')
 }
 
 const confirmDeleteLedger = (ledger) => {
-  Confirm.show({
+  Modal.confirm({
+    title: '确认删除',
     content: `确定要删除账本"${ledger.name}"吗？`,
-    onConfirm: async () => {
+    onOk: async () => {
       await ledgerStore.deleteLedger(ledger.id)
-      Toast.show('删除成功')
+      message.success('删除成功')
     }
   })
 }
 
 const createLedger = async () => {
   if (!newLedger.value.name) {
-    Toast.show('请输入账本名称')
+    message.warning('请输入账本名称')
     return
   }
 
@@ -131,19 +352,9 @@ const createLedger = async () => {
     description: newLedger.value.description
   })
 
-  Toast.show('创建成功')
+  message.success('创建成功')
   showCreateLedger.value = false
   newLedger.value = { name: '', description: '' }
-}
-
-const exportData = () => {
-  Toast.show('导出功能开发中')
-}
-
-const showAbout = () => {
-  Dialog.alert({
-    content: '自动记账系统 v1.0.0\n基于AI的智能账单识别'
-  })
 }
 </script>
 
@@ -151,34 +362,25 @@ const showAbout = () => {
 .settings-page {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 50px;
+  height: 100%;
   background: #f5f5f5;
 }
 
 .user-info {
-  display: flex;
-  align-items: center;
-  padding: 24px 16px;
-  background: #fff;
-  margin-bottom: 12px;
+  margin: 16px;
+  border-radius: 12px;
 }
 
 .user-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
   background: linear-gradient(135deg, #1890ff, #096dd9);
   color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 24px;
   font-weight: bold;
-  margin-right: 16px;
 }
 
 .user-details {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-name {
@@ -192,55 +394,50 @@ const showAbout = () => {
   color: #999;
 }
 
-.ledger-manager {
-  padding: 16px;
+.section-card {
+  margin: 0 16px 16px 16px;
+  border-radius: 12px;
 }
 
-.manager-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  font-size: 18px;
+.section-card :deep(.ant-card-head-title) {
   font-weight: bold;
 }
 
-.ledger-list {
-  max-height: 300px;
-  overflow-y: auto;
+.action-list {
+  background: #fff;
+}
+
+.action-list :deep(.ant-list-item) {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.action-list :deep(.ant-list-item:hover) {
+  background: #fafafa;
+}
+
+.action-list :deep(.ant-list-item:last-child) {
+  border-bottom: none;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+}
+
+.ledger-list :deep(.ant-list-item) {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ledger-list :deep(.ant-list-item:last-child) {
+  border-bottom: none;
 }
 
 .ledger-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: #f5f5f5;
-  border-radius: 8px;
-  margin-bottom: 8px;
-}
-
-.ledger-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ledger-name {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.default-badge {
-  padding: 2px 8px;
-  background: #1890ff;
-  color: #fff;
-  font-size: 12px;
-  border-radius: 12px;
-}
-
-.ledger-actions {
-  display: flex;
-  gap: 8px;
 }
 </style>

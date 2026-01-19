@@ -30,6 +30,10 @@ export const useLedgerStore = defineStore('ledger', () => {
         currentLedgerId.value = defaultLedger.value.id
         saveCurrentLedgerId()
       }
+    } catch (error) {
+      // 未登录或API错误时，静默处理
+      console.log('获取账本列表失败:', error.message)
+      ledgers.value = []
     } finally {
       loading.value = false
     }

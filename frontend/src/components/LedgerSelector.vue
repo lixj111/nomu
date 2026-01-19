@@ -1,22 +1,24 @@
 <template>
-  <div class="ledger-selector" @click="showPicker = true">
-    <span class="current-ledger">{{ currentLedger?.name || '选择账本' }}</span>
-    <DownOutlined class="icon" />
-  </div>
-
-  <Popup v-model:show="showPicker" position="bottom" round>
-    <Picker
-      :columns="ledgerColumns"
-      :value="currentLedgerId"
-      @confirm="onConfirm"
-      @cancel="showPicker = false"
-    />
-  </Popup>
+  <a-dropdown v-model:open="showPicker" :trigger="['click']">
+    <div class="ledger-selector">
+      <span class="current-ledger">{{ currentLedger?.name || '选择账本' }}</span>
+      <DownOutlined class="icon" />
+    </div>
+    <template #overlay>
+      <a-menu @click="onMenuClick">
+        <a-menu-item
+          v-for="ledger in ledgerStore.ledgers"
+          :key="ledger.id"
+        >
+          {{ ledger.name }}
+        </a-menu-item>
+      </a-menu>
+    </template>
+  </a-dropdown>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Popup, Picker } from 'ant-design-mobile-vue'
 import { DownOutlined } from '@ant-design/icons-vue'
 import { useLedgerStore } from '@/stores'
 
@@ -29,15 +31,8 @@ const showPicker = ref(false)
 const currentLedger = computed(() => ledgerStore.currentLedger)
 const currentLedgerId = computed(() => ledgerStore.currentLedgerId)
 
-const ledgerColumns = computed(() => {
-  return ledgerStore.ledgers.map(ledger => ({
-    label: ledger.name,
-    value: ledger.id
-  }))
-})
-
-const onConfirm = ({ value }) => {
-  emit('change', value)
+const onMenuClick = ({ key }) => {
+  emit('change', key)
   showPicker.value = false
 }
 </script>
@@ -50,6 +45,13 @@ const onConfirm = ({ value }) => {
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.ledger-selector:hover {
+  background: #f5f5f5;
 }
 
 .current-ledger {

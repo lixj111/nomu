@@ -1,12 +1,18 @@
 <template>
   <div id="app">
-    <router-view />
+    <a-layout class="app-layout">
+      <a-layout-content class="app-content">
+        <router-view />
+      </a-layout-content>
+      <TabBar />
+    </a-layout>
   </div>
 </template>
 
 <script setup>
 import { onMounted } from 'vue'
 import { useUserStore, useLedgerStore } from '@/stores'
+import TabBar from '@/components/TabBar.vue'
 
 const userStore = useUserStore()
 const ledgerStore = useLedgerStore()
@@ -40,7 +46,17 @@ html, body {
 #app {
   width: 100%;
   height: 100%;
+}
+
+.app-layout {
+  height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 60px;
 }
 </style>

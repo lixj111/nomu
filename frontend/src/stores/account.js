@@ -34,6 +34,9 @@ export const useAccountStore = defineStore('account', () => {
         pageSize: res.data.page_size,
         pages: res.data.pages
       }
+    } catch (error) {
+      console.log('获取账单列表失败:', error.message)
+      accounts.value = []
     } finally {
       loading.value = false
     }
@@ -48,6 +51,9 @@ export const useAccountStore = defineStore('account', () => {
     try {
       const res = await accountApi.getAccountsByDate(year, month, ledgerStore.currentLedgerId)
       accountsByDate.value = res.data
+    } catch (error) {
+      console.log('获取账单列表失败:', error.message)
+      accountsByDate.value = {}
     } finally {
       loading.value = false
     }

@@ -4,6 +4,10 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
+    redirect: '/ledger'
+  },
+  {
+    path: '/ledger',
     name: 'Ledger',
     component: () => import('@/views/Ledger.vue'),
     meta: { title: '账本', icon: 'book', requiresAuth: true }

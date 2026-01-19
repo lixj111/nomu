@@ -6,18 +6,17 @@
     </div>
 
     <div v-else class="preview-area">
-      <img :src="previewUrl" class="preview-image" />
-      <div class="preview-actions">
-        <Button size="small" @click="selectImage">重新选择</Button>
-        <Button
-          size="small"
-          color="primary"
+      <a-image :src="previewUrl" class="preview-image" />
+      <a-space class="preview-actions">
+        <a-button @click="selectImage">重新选择</a-button>
+        <a-button
+          type="primary"
           :loading="uploading"
           @click="confirmUpload"
         >
           {{ uploading ? '识别中...' : '确认上传' }}
-        </Button>
-      </div>
+        </a-button>
+      </a-space>
     </div>
 
     <input
@@ -32,7 +31,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { Button, Toast } from 'ant-design-mobile-vue'
+import { message } from 'ant-design-vue'
 import { CameraOutlined } from '@ant-design/icons-vue'
 import { uploadReceipt } from '@/api/upload'
 import { useLedgerStore } from '@/stores'
@@ -55,7 +54,7 @@ const handleFileChange = (e) => {
   if (file) {
     // 检查文件大小
     if (file.size > 10 * 1024 * 1024) {
-      Toast.show('图片不能超过10MB')
+      message.error('图片不能超过10MB')
       return
     }
 
@@ -66,7 +65,7 @@ const handleFileChange = (e) => {
 
 const confirmUpload = async () => {
   if (!selectedFile.value || !ledgerStore.currentLedgerId) {
-    Toast.show('请先选择账本')
+    message.warning('请先选择账本')
     return
   }
 
@@ -78,7 +77,7 @@ const confirmUpload = async () => {
     selectedFile.value = null
     previewUrl.value = null
   } catch (error) {
-    Toast.show(error.message || '上传失败')
+    message.error(error.message || '上传失败')
   } finally {
     uploading.value = false
   }
@@ -91,26 +90,28 @@ const confirmUpload = async () => {
 }
 
 .upload-area {
-  border: 2px dashed #ddd;
-  border-radius: 12px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
   padding: 40px 20px;
   text-align: center;
   cursor: pointer;
+  transition: border-color 0.3s;
 }
 
-.upload-area:active {
-  border-color: #1890ff;
+.upload-area:hover {
+  border-color: #1677ff;
 }
 
 .upload-area .icon {
   font-size: 48px;
-  color: #ddd;
+  color: #d9d9d9;
   margin-bottom: 12px;
 }
 
 .upload-area p {
   color: #999;
   font-size: 14px;
+  margin: 0;
 }
 
 .preview-area {
@@ -127,6 +128,5 @@ const confirmUpload = async () => {
 .preview-actions {
   display: flex;
   justify-content: center;
-  gap: 12px;
 }
 </style>

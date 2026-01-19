@@ -39,6 +39,12 @@ request.interceptors.response.use(
       localStorage.removeItem('user')
       window.location.href = '/login'
     }
+    // 处理403禁止访问（未登录或无权限）
+    if (error.response?.status === 403) {
+      console.log('未登录或无权限访问')
+      // 不显示错误提示，静默处理
+      return Promise.reject(new Error('未登录'))
+    }
     return Promise.reject(error.response?.data?.detail || error.message)
   }
 )
