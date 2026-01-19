@@ -69,7 +69,7 @@ const emit = defineEmits(['success', 'cancel'])
 const accountStore = useAccountStore()
 const ledgerStore = useLedgerStore()
 
-const categories = ['餐饮', '交通', '购物', '娱乐', '医疗', '教育', '住房', '通讯', '其他']
+const categories = ['食品餐饮', '出行交通', '购物消费', '休闲娱乐', '居家生活', '文化教育', '健康医疗', '其他']
 
 const form = reactive({
   transaction_type: '支出',

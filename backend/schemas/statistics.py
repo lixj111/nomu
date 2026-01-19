@@ -1,6 +1,5 @@
 """统计分析相关模型"""
 from pydantic import BaseModel
-from typing import Optional
 
 
 class CategoryStat(BaseModel):

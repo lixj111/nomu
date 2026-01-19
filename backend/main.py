@@ -11,7 +11,7 @@ from api.v1 import auth, ledgers, accounts, upload, statistics
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="基于AI的自动记账系统API",
+    description="智账-基于AI的自动记账系统API",
     debug=settings.DEBUG
 )
 
@@ -25,8 +25,11 @@ app.add_middleware(
 )
 
 # 挂载静态文件
+# 配置静态文件服务：获取上传目录的父目录（backend/static）
 static_dir = Path(settings.UPLOAD_DIR).parent
+# 确保静态文件目录存在
 static_dir.mkdir(parents=True, exist_ok=True)
+# 挂载静态文件目录到 /static 路径，支持图片等资源访问
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # 注册路由

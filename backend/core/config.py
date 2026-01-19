@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     """应用配置"""
 
     # 应用信息
-    APP_NAME: str = "自动记账系统"
+    APP_NAME: str = "智账-基于AI的自动记账系统"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
     # API密钥
     ZHIPU_API_KEY: Optional[str] = None

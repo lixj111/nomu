@@ -85,13 +85,19 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建索引
+            # 创建索引：加速用户名查询（登录验证）
             conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
+            # 创建索引：加速按用户ID查询账本列表
             conn.execute("CREATE INDEX IF NOT EXISTS idx_ledgers_user_id ON ledgers(user_id)")
+            # 创建索引：加速查询默认账本
             conn.execute("CREATE INDEX IF NOT EXISTS idx_ledgers_default ON ledgers(is_default)")
+            # 创建索引：加速按账本查询账单（最常用）
             conn.execute("CREATE INDEX IF NOT EXISTS idx_accounts_ledger_id ON accounts(ledger_id)")
+            # 创建索引：加速按日期范围查询和统计
             conn.execute("CREATE INDEX IF NOT EXISTS idx_accounts_transaction_date ON accounts(transaction_date)")
+            # 创建索引：加速按分类查询和统计
             conn.execute("CREATE INDEX IF NOT EXISTS idx_accounts_category ON accounts(category)")
+            # 创建索引：加速按收支类型查询和统计
             conn.execute("CREATE INDEX IF NOT EXISTS idx_accounts_transaction_type ON accounts(transaction_type)")
 
             # 为现有数据添加默认账本（如果表存在但 ledger_id 列不存在）
