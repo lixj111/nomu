@@ -9,45 +9,23 @@
       </a-form-item>
 
       <a-form-item label="金额" required>
-        <a-input-number
-          v-model:value="form.amount"
-          :precision="2"
-          :min="0"
-          placeholder="请输入金额"
-          style="width: 100%"
-        />
+        <a-input-number v-model:value="form.amount" :precision="2" :min="0" placeholder="请输入金额" style="width: 100%" />
       </a-form-item>
 
       <a-form-item label="商品/服务名称" required>
-        <a-input
-          v-model:value="form.item_name"
-          placeholder="请输入商品或服务名称"
-        />
+        <a-input v-model:value="form.item_name" placeholder="请输入商品或服务名称" />
       </a-form-item>
 
       <a-form-item label="分类">
-        <a-select
-          v-model:value="form.category"
-          placeholder="选择分类"
-          :options="categoryOptions"
-        />
+        <a-select v-model:value="form.category" placeholder="选择分类" :options="categoryOptions" />
       </a-form-item>
 
       <a-form-item label="日期">
-        <a-date-picker
-          v-model:value="formDate"
-          format="YYYY-MM-DD"
-          placeholder="选择日期"
-          style="width: 100%"
-        />
+        <a-date-picker v-model:value="formDate" format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
       </a-form-item>
 
       <a-form-item label="备注">
-        <a-textarea
-          v-model:value="form.notes"
-          placeholder="选填"
-          :rows="3"
-        />
+        <a-textarea v-model:value="form.notes" placeholder="选填" :rows="3" />
       </a-form-item>
 
       <a-form-item>

@@ -16,11 +16,7 @@
             <a-empty description="暂无账单，点击右上角记一笔或上传账单" />
           </div>
           <div v-else class="account-groups">
-            <div
-              v-for="group in groupedAccounts"
-              :key="group.date"
-              class="date-group"
-            >
+            <div v-for="group in groupedAccounts" :key="group.date" class="date-group">
               <div class="date-header">
                 <span class="date-title">{{ group.dateTitle }}</span>
                 <span class="date-summary">
@@ -28,14 +24,8 @@
                 </span>
               </div>
               <div class="date-accounts">
-                <AccountCard
-                  v-for="account in group.accounts"
-                  :key="account.id"
-                  :account="account"
-                  @click="showDetail"
-                  @edit="handleEdit"
-                  @delete="handleDelete"
-                />
+                <AccountCard v-for="account in group.accounts" :key="account.id" :account="account" @click="showDetail"
+                  @edit="handleEdit" @delete="handleDelete" />
               </div>
             </div>
           </div>
@@ -51,27 +41,13 @@
     </a-layout>
 
     <!-- 上传弹窗 -->
-    <a-modal
-      v-model:open="showUploadModal"
-      title="上传账单"
-      :footer="null"
-      width="90%"
-    >
+    <a-modal v-model:open="showUploadModal" title="上传账单" :footer="null" width="90%">
       <ImageUploader @uploaded="handleUploadSuccess" />
     </a-modal>
 
     <!-- 添加/编辑账单弹窗 -->
-    <a-drawer
-      v-model:open="showFormModal"
-      :title="editingAccount ? '编辑账单' : '记一笔'"
-      placement="right"
-      :width="400"
-    >
-      <AccountForm
-        :account="editingAccount"
-        @success="handleFormSuccess"
-        @cancel="showFormModal = false"
-      />
+    <a-drawer v-model:open="showFormModal" :title="editingAccount ? '编辑账单' : '记一笔'" placement="right" :width="400">
+      <AccountForm :account="editingAccount" @success="handleFormSuccess" @cancel="showFormModal = false" />
     </a-drawer>
   </div>
 </template>
@@ -218,7 +194,7 @@ const handleUploadSuccess = (result) => {
 const handleFormSuccess = () => {
   showFormModal.value = false
   editingAccount.value = null
-  message.success(editingAccount.value ? '更新成功' : '添加成功')
+  // message.success(editingAccount.value ? '更新成功' : '添加成功')
   loadAccounts()
 }
 </script>
