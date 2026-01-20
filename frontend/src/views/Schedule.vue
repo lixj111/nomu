@@ -18,6 +18,26 @@
         <span class="summary-text">支 <span class="expense-amount">{{ monthlySummary.expense.toFixed(2) }}</span></span>
         <span class="summary-text">余 <span class="balance-amount">{{ monthlySummary.balance.toFixed(2) }}</span></span>
       </div>
+      <!-- 设置按钮 -->
+      <div class="header-settings">
+        <a-dropdown :trigger="['click']">
+          <div class="settings-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item @click="toggleHeatmap">
+                <span>{{ showHeatmap ? '关闭' : '显示' }}热力背景</span>
+              </a-menu-item>
+              <a-menu-item @click="showMoreSettings">
+                <span>更多设置</span>
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+      </div>
     </div>
 
     <!-- 主体区域 -->
@@ -39,6 +59,7 @@
               'selected': selectedDate === dayInfo.dateStr,
               'today': dayInfo.isToday
             }"
+            :style="showHeatmap && dayInfo.hasData ? getHeatmapStyle(dayInfo.summary.balance) : {}"
             @click="selectDate(dayInfo)"
           >
             <div class="day-number">{{ dayInfo.isToday ? '今' : dayInfo.day }}</div>
@@ -107,6 +128,7 @@ const currentYear = ref(new Date().getFullYear())
 const currentMonth = ref(new Date().getMonth() + 1)
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const loading = ref(false)
+const showHeatmap = ref(false)  // 是否显示热力背景
 
 const weekdays = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -270,6 +292,56 @@ const selectDate = (dayInfo) => {
   selectedDate.value = dayInfo.dateStr
 }
 
+// 获取热力背景样式
+const getHeatmapStyle = (balance) => {
+  // 根据结余计算颜色深度
+  // 结余为正：绿色渐变（结余越多绿色越深）
+  // 结余为负：红色渐变（结余越少红色越深）
+  const maxBalance = Math.max(
+    ...Object.values(accountsByDate.value).flat().map(item => {
+      const dateStr = item.transaction_date
+      const items = accountsByDate.value[dateStr] || []
+      return items.reduce((acc, cur) => {
+        if (cur.transaction_type === '收入') {
+          return acc + parseFloat(cur.amount)
+        } else {
+          return acc - parseFloat(cur.amount)
+        }
+      }, 0)
+    })
+  )
+
+  const absMaxBalance = Math.max(Math.abs(maxBalance), 100)  // 至少100为基准
+  const ratio = Math.min(Math.abs(balance) / absMaxBalance, 1)  // 0到1之间
+
+  if (balance >= 0) {
+    // 绿色背景，透明度根据比例调整（增强版）
+    const opacity = 0.1 + ratio * 0.4  // 0.1到0.5之间
+    return {
+      backgroundColor: `rgba(82, 196, 26, ${opacity})`
+    }
+  } else {
+    // 红色背景，透明度根据比例调整（增强版）
+    const opacity = 0.1 + ratio * 0.4  // 0.1到0.5之间
+    return {
+      backgroundColor: `rgba(255, 77, 79, ${opacity})`
+    }
+  }
+}
+
+// 切换热力背景
+const toggleHeatmap = () => {
+  showHeatmap.value = !showHeatmap.value
+}
+
+// 更多设置（暂未实现）
+const showMoreSettings = () => {
+  Modal.info({
+    title: '更多设置',
+    content: '更多设置功能即将推出'
+  })
+}
+
 const showDetail = (account) => {
   Modal.info({
     title: account.item_name,
@@ -343,6 +415,7 @@ watch(
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  position: relative;
 }
 
 .header-year-month {
@@ -388,6 +461,34 @@ watch(
 .balance-amount {
   color: #666;
   font-weight: 500;
+}
+
+.header-settings {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.settings-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.settings-icon:hover {
+  background: rgba(82, 196, 26, 0.1);
+}
+
+.settings-icon span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #52c41a;
 }
 
 .schedule-body {
