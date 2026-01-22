@@ -82,6 +82,12 @@
             <template #actions>
               <a-space>
                 <a-button
+                  size="small"
+                  @click="openEditLedger(item)"
+                >
+                  编辑
+                </a-button>
+                <a-button
                   v-if="!item.is_default"
                   size="small"
                   @click="setDefaultLedger(item.id)"
@@ -101,6 +107,95 @@
           </a-list-item>
         </template>
       </a-list>
+    </a-modal>
+
+    <!-- 导出数据弹窗 -->
+    <a-modal
+      v-model:open="showExportModal"
+      title="导出数据"
+      :footer="null"
+      width="90%"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="日期范围">
+          <a-radio-group v-model:value="exportForm.dateRange" @change="handleDateRangeChange">
+            <a-radio value="all">所有时间</a-radio>
+            <a-radio value="custom">指定范围</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item v-if="exportForm.dateRange === 'custom'" label="选择日期">
+          <a-range-picker
+            v-model:value="exportForm.dateRangeValue"
+            format="YYYY-MM-DD"
+            :placeholder="['开始日期', '结束日期']"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="账本">
+          <a-radio-group v-model:value="exportForm.ledgerType" @change="handleLedgerTypeChange">
+            <a-radio value="current">当前账本</a-radio>
+            <a-radio value="select">选择账本</a-radio>
+          </a-radio-group>
+          <div v-if="exportForm.ledgerType === 'current'" class="current-ledger-hint">
+            当前账本：{{ ledgerStore.currentLedger?.name || '未选择' }}
+          </div>
+          <div v-if="exportForm.ledgerType === 'select'" class="ledger-checkbox-list">
+            <a-checkbox
+              :indeterminate="indeterminateState"
+              :checked="selectAllChecked"
+              @change="onSelectAllChange"
+            >
+              全选
+            </a-checkbox>
+            <a-divider style="margin: 8px 0" />
+            <div class="ledger-checkbox-items">
+              <a-checkbox
+                v-for="ledger in ledgerStore.ledgers"
+                :key="ledger.id"
+                v-model:checked="exportForm.selectedLedgers[ledger.id]"
+                class="ledger-checkbox-item"
+              >
+                {{ ledger.name }}
+              </a-checkbox>
+            </div>
+          </div>
+        </a-form-item>
+        <a-form-item label="文件格式">
+          <a-radio-group v-model:value="exportForm.fileFormat">
+            <a-radio value="excel">Excel (.xlsx)</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item>
+          <a-button type="primary" block :loading="exporting" @click="handleStartExport">
+            开始导出
+          </a-button>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 编辑账本弹窗 -->
+    <a-modal
+      v-model:open="showEditLedger"
+      title="编辑账本"
+      @ok="handleUpdateLedger"
+      ok-text="保存"
+      cancel-text="取消"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="账本名称" required>
+          <a-input
+            v-model:value="editingLedger.name"
+            placeholder="请输入账本名称"
+          />
+        </a-form-item>
+        <a-form-item label="账本描述">
+          <a-textarea
+            v-model:value="editingLedger.description"
+            placeholder="请输入账本描述（可选）"
+            :rows="3"
+          />
+        </a-form-item>
+      </a-form>
     </a-modal>
 
     <!-- 创建账本弹窗 -->
@@ -181,19 +276,44 @@
 </template>
 
 <script setup>
-import { ref, onMounted, h } from 'vue'
+import { ref, onMounted, h, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { RightOutlined } from '@ant-design/icons-vue'
 import { useUserStore, useLedgerStore } from '@/stores'
+import dayjs from 'dayjs'
 
 const userStore = useUserStore()
 const ledgerStore = useLedgerStore()
 
 const showLedgerManager = ref(false)
 const showCreateLedger = ref(false)
+const showEditLedger = ref(false)
 const showLoginModal = ref(false)
+const showExportModal = ref(false)
 const isLoginMode = ref(true)
 const newLedger = ref({ name: '', description: '' })
+const editingLedger = ref({ id: null, name: '', description: '' })
+const exporting = ref(false)
+
+// 导出表单
+const exportForm = ref({
+  dateRange: 'all',
+  dateRangeValue: null,
+  ledgerType: 'current',
+  fileFormat: 'excel',
+  selectedLedgers: {}
+})
+
+// 全选状态计算
+const indeterminateState = computed(() => {
+  const selectedCount = Object.values(exportForm.value.selectedLedgers).filter(v => v).length
+  return selectedCount > 0 && selectedCount < ledgerStore.ledgers.length
+})
+
+const selectAllChecked = computed(() => {
+  if (ledgerStore.ledgers.length === 0) return false
+  return Object.values(exportForm.value.selectedLedgers).every(v => v)
+})
 
 // 登录/注册表单
 const loginForm = ref({
@@ -286,7 +406,131 @@ const handleRegister = async () => {
 }
 
 const exportData = () => {
-  message.info('导出功能开发中')
+  // 打开导出弹窗
+  showExportModal.value = true
+}
+
+const handleDateRangeChange = () => {
+  // 切换日期范围时清空选择的日期
+  if (exportForm.value.dateRange === 'all') {
+    exportForm.value.dateRangeValue = null
+  }
+}
+
+const handleLedgerTypeChange = () => {
+  // 切换账本类型时初始化选中状态
+  if (exportForm.value.ledgerType === 'select') {
+    // 初始化所有账本为未选中
+    exportForm.value.selectedLedgers = {}
+    ledgerStore.ledgers.forEach(ledger => {
+      exportForm.value.selectedLedgers[ledger.id] = false
+    })
+  }
+}
+
+const onSelectAllChange = (e) => {
+  const checked = e.target.checked
+  Object.keys(exportForm.value.selectedLedgers).forEach(key => {
+    exportForm.value.selectedLedgers[key] = checked
+  })
+}
+
+const handleStartExport = async () => {
+  // 验证账本选择
+  if (exportForm.value.ledgerType === 'current' && !ledgerStore.currentLedgerId) {
+    message.warning('请先选择账本')
+    return
+  }
+
+  // 验证选择的账本
+  if (exportForm.value.ledgerType === 'select') {
+    const selectedCount = Object.values(exportForm.value.selectedLedgers).filter(v => v).length
+    if (selectedCount === 0) {
+      message.warning('请至少选择一个账本')
+      return
+    }
+  }
+
+  // 验证自定义日期范围
+  if (exportForm.value.dateRange === 'custom' && (!exportForm.value.dateRangeValue || exportForm.value.dateRangeValue.length !== 2)) {
+    message.warning('请选择日期范围')
+    return
+  }
+
+  exporting.value = true
+
+  try {
+    const { exportAccounts } = await import('@/api/export')
+
+    // 构建导出参数
+    const params = {}
+    if (exportForm.value.dateRange === 'custom' && exportForm.value.dateRangeValue) {
+      params.start_date = exportForm.value.dateRangeValue[0].format('YYYY-MM-DD')
+      params.end_date = exportForm.value.dateRangeValue[1].format('YYYY-MM-DD')
+    }
+
+    // 根据账本类型导出
+    if (exportForm.value.ledgerType === 'current') {
+      // 导出当前账本
+      const response = await exportAccounts(ledgerStore.currentLedgerId, params)
+      downloadFile(response)
+      message.success('导出成功')
+    } else {
+      // 导出选中的账本
+      const selectedLedgerIds = Object.keys(exportForm.value.selectedLedgers)
+        .filter(key => exportForm.value.selectedLedgers[key])
+        .map(id => parseInt(id))
+
+      let count = 0
+      for (const ledgerId of selectedLedgerIds) {
+        const response = await exportAccounts(ledgerId, params)
+        downloadFile(response)
+        count++
+      }
+      message.success(`已导出 ${count} 个账本`)
+    }
+
+    showExportModal.value = false
+    // 重置表单
+    exportForm.value = {
+      dateRange: 'all',
+      dateRangeValue: null,
+      ledgerType: 'current',
+      fileFormat: 'excel',
+      selectedLedgers: {}
+    }
+  } catch (error) {
+    message.error(error.message || '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
+const downloadFile = (response) => {
+  const blob = response.data
+
+  // 创建下载链接
+  const url = window.URL.createObjectURL(blob)
+
+  // 从响应头获取文件名
+  const contentDisposition = response.headers?.['content-disposition'] || ''
+  let filename = `账单明细_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`
+
+  const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+  if (filenameMatch && filenameMatch[1]) {
+    filename = filenameMatch[1].replace(/['"]/g, '')
+  }
+
+  // 创建下载链接并点击
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+
+  // 清理
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
 }
 
 const showAbout = () => {
@@ -354,14 +598,46 @@ const createLedger = async () => {
     return
   }
 
-  await ledgerStore.createLedger({
-    name: newLedger.value.name,
-    description: newLedger.value.description
-  })
+  try {
+    await ledgerStore.createLedger({
+      name: newLedger.value.name,
+      description: newLedger.value.description
+    })
 
-  message.success('创建成功')
-  showCreateLedger.value = false
-  newLedger.value = { name: '', description: '' }
+    message.success('创建成功')
+    showCreateLedger.value = false
+    newLedger.value = { name: '', description: '' }
+  } catch (error) {
+    message.error(error.message || '创建失败')
+  }
+}
+
+const openEditLedger = (ledger) => {
+  editingLedger.value = {
+    id: ledger.id,
+    name: ledger.name,
+    description: ledger.description || ''
+  }
+  showEditLedger.value = true
+}
+
+const handleUpdateLedger = async () => {
+  if (!editingLedger.value.name) {
+    message.warning('请输入账本名称')
+    return
+  }
+
+  try {
+    await ledgerStore.updateLedger(editingLedger.value.id, {
+      name: editingLedger.value.name,
+      description: editingLedger.value.description
+    })
+
+    message.success('更新成功')
+    showEditLedger.value = false
+  } catch (error) {
+    message.error(error.message || '更新失败')
+  }
 }
 </script>
 
@@ -446,5 +722,33 @@ const createLedger = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.current-ledger-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f0f5ff;
+  border: 1px solid #adc6ff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1890ff;
+}
+
+.ledger-checkbox-list {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.ledger-checkbox-items {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ledger-checkbox-item {
+  padding: 6px 0;
+  display: block;
 }
 </style>

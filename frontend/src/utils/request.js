@@ -25,6 +25,11 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   (response) => {
+    // 处理文件下载响应（blob类型）
+    if (response.config.responseType === 'blob') {
+      return response
+    }
+
     const res = response.data
     // 如果响应码不是200，视为错误
     if (res.code !== 200 && res.code !== 201) {

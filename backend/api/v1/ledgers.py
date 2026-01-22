@@ -57,22 +57,37 @@ async def create_ledger(
         is_default=False
     )
 
-    ledger_id = db.create_ledger(ledger)
-    ledger.id = ledger_id
+    try:
+        ledger_id = db.create_ledger(ledger)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    # 重新从数据库获取创建后的账本（包含时间戳）
+    created_ledger = db.get_ledger_by_id(ledger_id)
+    if not created_ledger:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="创建账本失败"
+        )
+
+    account_count = db.get_ledger_account_count(ledger_id)
 
     return ResponseModel(
         code=201,
         message="创建成功",
         data=LedgerResponse(
-            id=ledger.id,
-            name=ledger.name,
-            description=ledger.description,
-            icon=ledger.icon,
-            color=ledger.color,
-            is_default=ledger.is_default,
-            account_count=0,
-            created_at=ledger.created_at,
-            updated_at=ledger.updated_at
+            id=created_ledger.id,
+            name=created_ledger.name,
+            description=created_ledger.description,
+            icon=created_ledger.icon,
+            color=created_ledger.color,
+            is_default=created_ledger.is_default,
+            account_count=account_count,
+            created_at=created_ledger.created_at,
+            updated_at=created_ledger.updated_at
         )
     )
 
@@ -92,6 +107,14 @@ async def update_ledger(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="账本不存在"
         )
+
+    # 检查名称是否重复
+    if ledger_data.name and ledger_data.name != ledger.name:
+        if db.check_ledger_name_exists(current_user.id, ledger_data.name, exclude_id=ledger_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="账本名称已存在"
+            )
 
     # 更新字段
     if ledger_data.name:

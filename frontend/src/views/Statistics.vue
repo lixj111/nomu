@@ -37,15 +37,68 @@
     </div>
 
     <!-- 时间选择栏 -->
-    <div class="time-display-bar">
+    <!-- 月统计模式：横向滚动月份选择器 -->
+    <div class="time-display-bar month-mode" v-if="activeTab === 'month'">
+      <div class="year-display">{{ currentYear }}</div>
+      <div class="month-divider">|</div>
+      <div class="month-scroll-container">
+        <div class="month-scroll-content">
+          <a-button
+            v-for="monthOption in monthOptions"
+            :key="monthOption.key"
+            size="small"
+            :type="isMonthSelected(monthOption) ? 'primary' : 'default'"
+            @click="selectMonth(monthOption)"
+            class="month-button"
+          >
+            {{ monthOption.label }}
+          </a-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 年统计模式：横向滚动年份选择器 -->
+    <div class="time-display-bar year-mode" v-else-if="activeTab === 'year'">
+      <div class="year-scroll-container">
+        <div class="year-scroll-content">
+          <a-button
+            v-for="yearOption in yearOptions"
+            :key="yearOption.key"
+            size="small"
+            :type="isYearSelected(yearOption) ? 'primary' : 'default'"
+            @click="selectYear(yearOption)"
+            class="year-button"
+          >
+            {{ yearOption.label }}
+          </a-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自定义模式：原有左右箭头样式 -->
+    <div class="time-display-bar" v-else>
       <a-button size="small" @click="prevPeriod">
         <template #icon><LeftOutlined /></template>
       </a-button>
-      <span class="time-title">{{ timeDisplayTitle }}</span>
+      <span class="time-title" @click="handleTimeTitleClick" :class="{ clickable: activeTab === 'custom' }">
+        {{ timeDisplayTitle }}
+      </span>
       <a-button size="small" @click="nextPeriod">
         <template #icon><RightOutlined /></template>
       </a-button>
     </div>
+
+    <!-- 自定义日期范围选择弹窗 -->
+    <a-modal v-model:open="showDateRangeModal" title="选择日期范围" :width="400" @ok="handleDateRangeConfirm">
+      <a-form layout="vertical">
+        <a-form-item label="开始日期">
+          <a-date-picker v-model:value="tempStartDate" format="YYYY-MM-DD" style="width: 100%" />
+        </a-form-item>
+        <a-form-item label="结束日期">
+          <a-date-picker v-model:value="tempEndDate" format="YYYY-MM-DD" style="width: 100%" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
 
     <!-- 可滚动内容区域 -->
     <div class="statistics-content">
@@ -69,7 +122,8 @@
             </span>
           </div>
         </div>
-        <div class="summary-row-daily" v-if="summaryExpanded">
+        <!-- 日均统计：年统计且选择"所有"时不显示 -->
+        <div class="summary-row-daily" v-if="summaryExpanded && !(activeTab === 'year' && currentYear === null)">
           <div class="summary-item">
             <span class="summary-label">日均支出</span>
             <span class="summary-value expense">¥{{ periodStats.dailyExpense.toFixed(2) }}</span>
@@ -85,7 +139,7 @@
             </span>
           </div>
         </div>
-        <div class="toggle-icon-bottom">
+        <div class="toggle-icon-bottom" v-if="!(activeTab === 'year' && currentYear === null)">
           <DownOutlined v-if="!summaryExpanded" />
           <UpOutlined v-else />
         </div>
@@ -196,9 +250,82 @@ const tabs = [
 const activeTab = ref('month')
 const currentYear = ref(new Date().getFullYear())
 const currentMonth = ref(new Date().getMonth() + 1)
+
+// 生成月份选项列表（包含"本月"和最近12个月）
+const monthOptions = computed(() => {
+  const now = dayjs()
+  const options = []
+
+  // 添加"本月"按钮
+  options.push({
+    key: 'current',
+    label: '本月',
+    year: now.year(),
+    month: now.month() + 1
+  })
+
+  // 添加最近11个月（从上个月往前数，避免与本月重复）
+  for (let i = 1; i < 12; i++) {
+    const date = now.subtract(i, 'month')
+    options.push({
+      key: `month-${i}`,
+      label: `${date.month() + 1}月`,
+      year: date.year(),
+      month: date.month() + 1
+    })
+  }
+
+  return options
+})
+
+// 生成年份选项列表（包含"所有"、"今年"、"去年"和最近20年）
+const yearOptions = computed(() => {
+  const now = dayjs()
+  const currentYear = now.year()
+  const options = []
+
+  // 添加"所有"按钮（显示全部年份的数据）
+  options.push({
+    key: 'all',
+    label: '所有',
+    year: null
+  })
+
+  // 添加"今年"按钮
+  options.push({
+    key: 'current',
+    label: '今年',
+    year: currentYear
+  })
+
+  // 添加"去年"按钮
+  options.push({
+    key: 'last-year',
+    label: '去年',
+    year: currentYear - 1
+  })
+
+  // 添加最近20年（从前年开始往前数，避免与今年、去年重复）
+  for (let i = 2; i < 20; i++) {
+    const year = currentYear - i
+    options.push({
+      key: `year-${i}`,
+      label: `${year}年`,
+      year: year
+    })
+  }
+
+  return options
+})
+
 const customStartDate = ref(dayjs().startOf('month'))
 const customEndDate = ref(dayjs().endOf('month'))
 const summaryExpanded = ref(false)  // 汇总统计是否展开
+
+// 日期范围选择弹窗
+const showDateRangeModal = ref(false)
+const tempStartDate = ref(dayjs().startOf('month'))
+const tempEndDate = ref(dayjs().endOf('month'))
 
 // 图表类型
 const barChartType = ref('expense')  // expense, income
@@ -444,18 +571,17 @@ const tableData = computed(() => {
     }
   })
 
-  // 排序并计算累计结余
+  // 排序，计算当天/当月结余（不累计）
   const dates = Object.keys(grouped).sort()
-  let cumulativeBalance = 0
 
   return dates.map(date => {
     const row = grouped[date]
-    cumulativeBalance += row.income - row.expense
+    // 使用当天/当月的结余（收入 - 支出）
     return {
       date: dayjs(date).format(activeTab.value === 'year' ? 'M月' : 'M月D日'),
       income: row.income,
       expense: row.expense,
-      balance: cumulativeBalance
+      balance: row.income - row.expense
     }
   }).reverse()  // 最新的在上面
 })
@@ -468,6 +594,13 @@ const getDateRange = () => {
       end: date.endOf('month').format('YYYY-MM-DD')
     }
   } else if (activeTab.value === 'year') {
+    // 如果是"所有"年份（currentYear 为 null），返回所有数据
+    if (currentYear.value === null) {
+      return {
+        start: '1900-01-01',  // 足够早的日期
+        end: '2099-12-31'      // 足够晚的日期
+      }
+    }
     const date = dayjs(`${currentYear.value}-01-01`)
     return {
       start: date.startOf('year').format('YYYY-MM-DD'),
@@ -483,35 +616,26 @@ const getDateRange = () => {
 
 // 初始化柱状图
 const initBarChart = () => {
-  console.log('[Statistics] initBarChart 被调用, barChartRef.value:', !!barChartRef.value)
   if (!barChartRef.value) return
 
   if (barChart) {
-    console.log('[Statistics] 销毁旧的柱状图实例')
     barChart.dispose()
   }
 
   barChart = echarts.init(barChartRef.value)
-  console.log('[Statistics] 柱状图实例已创建')
   updateBarChart()
 }
 
 // 更新柱状图
 const updateBarChart = () => {
-  console.log('[Statistics] updateBarChart 被调用')
   if (!barChart) {
-    console.log('[Statistics] barChart 实例不存在，跳过更新')
     return
   }
 
   const data = barChartData.value
-  console.log('[Statistics] barChartData:', data)
   const color = barChartType.value === 'expense' ? '#ff4d4f' : '#52c41a'
   const seriesData = barChartType.value === 'expense' ? data.expense : data.income
   const seriesName = barChartType.value === 'expense' ? '支出' : '收入'
-
-  console.log('[Statistics] 当前图表类型:', barChartType.value, '系列名称:', seriesName, '颜色:', color)
-  console.log('[Statistics] 系列数据长度:', seriesData.length, '数据:', seriesData)
 
   const option = {
     tooltip: {
@@ -547,36 +671,28 @@ const updateBarChart = () => {
     ]
   }
 
-  // 使用 notMerge: true 强制不合并，完全替换配置
-  console.log('[Statistics] 调用 setOption 更新图表')
   barChart.setOption(option, { notMerge: true })
 }
 
 // 初始化圆环图
 const initPieChart = () => {
-  console.log('[Statistics] initPieChart 被调用, pieChartRef.value:', !!pieChartRef.value)
   if (!pieChartRef.value) return
 
   if (pieChart) {
-    console.log('[Statistics] 销毁旧的圆环图实例')
     pieChart.dispose()
   }
 
   pieChart = echarts.init(pieChartRef.value)
-  console.log('[Statistics] 圆环图实例已创建')
   updatePieChart()
 }
 
 // 更新圆环图
 const updatePieChart = () => {
-  console.log('[Statistics] updatePieChart 被调用')
   if (!pieChart) {
-    console.log('[Statistics] pieChart 实例不存在，跳过更新')
     return
   }
 
   const data = pieChartType.value === 'expense' ? categoryStats.value.expense : categoryStats.value.income
-  console.log('[Statistics] 当前图表类型:', pieChartType.value, '分类数据:', data)
 
   const option = {
     tooltip: {
@@ -615,14 +731,40 @@ const updatePieChart = () => {
     ]
   }
 
-  // 使用 notMerge: true 强制不合并，完全替换配置
-  console.log('[Statistics] 调用 setOption 更新圆环图')
   pieChart.setOption(option, { notMerge: true })
 }
 
 // 切换汇总统计展开/折叠
 const toggleSummary = () => {
   summaryExpanded.value = !summaryExpanded.value
+}
+
+// 判断月份选项是否被选中
+const isMonthSelected = (monthOption) => {
+  return currentYear.value === monthOption.year && currentMonth.value === monthOption.month
+}
+
+// 选择月份
+const selectMonth = (monthOption) => {
+  currentYear.value = monthOption.year
+  currentMonth.value = monthOption.month
+  loadStatistics()
+}
+
+// 判断年份选项是否被选中
+const isYearSelected = (yearOption) => {
+  if (yearOption.year === null) {
+    // "所有"选项：当 currentYear 为 null 时选中
+    return currentYear.value === null
+  }
+  return currentYear.value === yearOption.year
+}
+
+// 选择年份
+const selectYear = (yearOption) => {
+  currentYear.value = yearOption.year
+  currentMonth.value = 1  // 重置月份为1月
+  loadStatistics()
 }
 
 // 切换标签
@@ -687,6 +829,39 @@ const showMoreSettings = () => {
   })
 }
 
+// 点击时间标题打开日期选择（仅自定义模式）
+const handleTimeTitleClick = () => {
+  if (activeTab.value === 'custom') {
+    tempStartDate.value = customStartDate.value
+    tempEndDate.value = customEndDate.value
+    showDateRangeModal.value = true
+  }
+}
+
+// 确认日期范围选择
+const handleDateRangeConfirm = () => {
+  if (!tempStartDate.value || !tempEndDate.value) {
+    Modal.warning({
+      title: '提示',
+      content: '请选择完整的日期范围'
+    })
+    return
+  }
+
+  if (tempStartDate.value.isAfter(tempEndDate.value)) {
+    Modal.warning({
+      title: '提示',
+      content: '开始日期不能晚于结束日期'
+    })
+    return
+  }
+
+  customStartDate.value = tempStartDate.value
+  customEndDate.value = tempEndDate.value
+  showDateRangeModal.value = false
+  loadStatistics()
+}
+
 const loadStatistics = async () => {
   if (!ledgerStore.currentLedgerId) return
 
@@ -699,7 +874,7 @@ const loadStatistics = async () => {
     updateBarChart()
     updatePieChart()
   } catch (error) {
-    console.log('加载统计数据失败:', error.message)
+    // 加载失败，静默处理
   }
 }
 
@@ -715,18 +890,14 @@ onMounted(() => {
 })
 
 // 监听图表类型变化
-watch(barChartType, (newVal) => {
-  console.log('[Statistics] barChartType 变化:', newVal)
+watch(barChartType, () => {
   nextTick(() => {
-    console.log('[Statistics] 准备更新柱状图, barChart实例:', !!barChart)
     updateBarChart()
   })
 })
 
-watch(pieChartType, (newVal) => {
-  console.log('[Statistics] pieChartType 变化:', newVal)
+watch(pieChartType, () => {
   nextTick(() => {
-    console.log('[Statistics] 准备更新圆环图, pieChart实例:', !!pieChart)
     updatePieChart()
   })
 })
@@ -828,6 +999,81 @@ window.addEventListener('resize', () => {
   z-index: 9;
 }
 
+/* 月统计模式：横向滚动布局 */
+.time-display-bar.month-mode {
+  justify-content: flex-start;
+}
+
+/* 年统计模式：横向滚动布局 */
+.time-display-bar.year-mode {
+  justify-content: flex-start;
+  padding: 12px 0;
+}
+
+.time-display-bar .year-display {
+  font-size: 16px;
+  font-weight: bold;
+  color: #262626;
+  flex-shrink: 0;
+}
+
+.time-display-bar .month-divider {
+  font-size: 16px;
+  color: #d9d9d9;
+  margin: 0 8px;
+  flex-shrink: 0;
+}
+
+.time-display-bar .month-scroll-container {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* 隐藏滚动条但保留滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.time-display-bar .month-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.time-display-bar .month-scroll-content {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.time-display-bar .month-button {
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.time-display-bar .year-scroll-container {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* 隐藏滚动条但保留滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.time-display-bar .year-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.time-display-bar .year-scroll-content {
+  display: flex;
+  gap: 8px;
+  padding: 2px 16px;
+}
+
+.time-display-bar .year-button {
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
 /* 可滚动的内容区域 */
 .statistics-content {
   overflow-y: auto;
@@ -840,6 +1086,18 @@ window.addEventListener('resize', () => {
   font-weight: bold;
   min-width: 120px;
   text-align: center;
+}
+
+.time-title.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: #999;
+}
+
+.time-title.clickable:hover {
+  color: #1890ff;
+  text-decoration-color: #1890ff;
 }
 
 .summary-section {

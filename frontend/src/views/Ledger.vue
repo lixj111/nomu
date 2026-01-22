@@ -4,9 +4,14 @@
     <a-layout class="page-layout">
       <a-layout-header class="page-header">
         <LedgerSelector @change="handleLedgerChange" />
-        <a-button type="primary" @click="openAddModal">
-          记一笔
-        </a-button>
+        <a-space>
+          <a-button type="primary" @click="openAddModal">
+            <template #icon>
+              <PlusOutlined />
+            </template>
+            记一笔
+          </a-button>
+        </a-space>
       </a-layout-header>
 
       <a-layout-content class="page-content">
@@ -20,7 +25,8 @@
               <div class="date-header">
                 <span class="date-title">{{ group.dateTitle }}</span>
                 <span class="date-summary">
-                  收 {{ group.income.toFixed(2) }} 支 {{ group.expense.toFixed(2) }}
+                  <span class="income-text">收 <span class="income-amount">{{ group.income.toFixed(2) }}</span></span>
+                  <span class="expense-text">支 <span class="expense-amount">{{ group.expense.toFixed(2) }}</span></span>
                 </span>
               </div>
               <div class="date-accounts">
@@ -53,9 +59,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { CameraOutlined } from '@ant-design/icons-vue'
+import { CameraOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useAccountStore, useLedgerStore } from '@/stores'
 import AccountCard from '@/components/AccountCard.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -63,6 +70,8 @@ import AccountForm from '@/components/AccountForm.vue'
 import LedgerSelector from '@/components/LedgerSelector.vue'
 import DraggableFloatButton from '@/components/DraggableFloatButton.vue'
 import dayjs from 'dayjs'
+
+const router = useRouter()
 
 const accountStore = useAccountStore()
 const ledgerStore = useLedgerStore()
@@ -133,6 +142,13 @@ onMounted(() => {
   }
 })
 
+// 当从详情页返回时刷新列表
+onActivated(() => {
+  if (ledgerStore.currentLedgerId) {
+    loadAccounts()
+  }
+})
+
 const handleLedgerChange = (ledgerId) => {
   ledgerStore.switchLedger(ledgerId)
   loadAccounts()
@@ -148,14 +164,7 @@ const loadAccounts = async () => {
 }
 
 const showDetail = (account) => {
-  Modal.info({
-    title: account.item_name,
-    content: h => h('div', [
-      h('p', `金额: ¥${account.amount}`),
-      h('p', `分类: ${account.category || '未分类'}`),
-      h('p', `日期: ${account.transaction_date}`)
-    ])
-  })
+  router.push(`/bill/${account.id}`)
 }
 
 const openAddModal = () => {
@@ -268,6 +277,23 @@ const handleFormSuccess = () => {
 .date-summary {
   font-size: 13px;
   color: #8c8c8c;
+}
+
+.date-summary .income-text {
+  color: #8c8c8c;
+  margin-right: 12px;
+}
+
+.date-summary .income-amount {
+  color: #52c41a;
+}
+
+.date-summary .expense-text {
+  color: #8c8c8c;
+}
+
+.date-summary .expense-amount {
+  color: #ff4d4f;
 }
 
 .date-accounts {

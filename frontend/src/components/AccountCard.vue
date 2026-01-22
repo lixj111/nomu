@@ -1,7 +1,7 @@
 <template>
   <div class="account-card" @click="$emit('click', account)">
     <div class="card-icon" :style="{ background: categoryColor }">
-      {{ account.category?.[0] || '账' }}
+      <component :is="categoryIcon" />
     </div>
     <div class="card-info">
       <div class="card-name">{{ account.item_name }}</div>
@@ -43,6 +43,23 @@
 <script setup>
 import { computed } from 'vue'
 import { MoreOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import {
+  CoffeeOutlined,
+  CarOutlined,
+  ShoppingOutlined,
+  GiftOutlined,
+  HomeOutlined,
+  BookOutlined,
+  HeartOutlined,
+  MoreOutlined as MoreIconOutlined,
+  WalletOutlined,
+  TrophyOutlined,
+  TeamOutlined,
+  SwapOutlined,
+  TransactionOutlined,
+  DollarOutlined,
+  RiseOutlined
+} from '@ant-design/icons-vue'
 
 const props = defineProps({
   account: {
@@ -53,6 +70,30 @@ const props = defineProps({
 
 defineEmits(['click', 'edit', 'delete'])
 
+// 支出分类图标
+const expenseIcons = {
+  '食品餐饮': CoffeeOutlined,
+  '出行交通': CarOutlined,
+  '购物消费': ShoppingOutlined,
+  '休闲娱乐': GiftOutlined,
+  '居家生活': HomeOutlined,
+  '文化教育': BookOutlined,
+  '健康医疗': HeartOutlined,
+  '其他': MoreIconOutlined
+}
+
+// 收入分类图标
+const incomeIcons = {
+  '工资': WalletOutlined,
+  '奖金': TrophyOutlined,
+  '兼职外快': TeamOutlined,
+  '二手闲置': SwapOutlined,
+  '补贴': TransactionOutlined,
+  '红包': DollarOutlined,
+  '理财盈利': RiseOutlined,
+  '其他': MoreIconOutlined
+}
+
 const categoryColors = {
   '食品餐饮': '#ff6b6b',
   '出行交通': '#4dabf7',
@@ -61,11 +102,25 @@ const categoryColors = {
   '居家生活': '#20c997',
   '文化教育': '#fab005',
   '健康医疗': '#51cf66',
+  '工资': '#52c41a',
+  '奖金': '#73d13d',
+  '兼职外快': '#95de64',
+  '二手闲置': '#b7eb8f',
+  '补贴': '#389e0d',
+  '红包': '#5b8c00',
+  '理财盈利': '#135200',
   '其他': '#adb5bd'
 }
 
 const categoryColor = computed(() => {
   return categoryColors[props.account.category] || '#1890ff'
+})
+
+const categoryIcon = computed(() => {
+  if (props.account.transaction_type === '收入') {
+    return incomeIcons[props.account.category] || MoreIconOutlined
+  }
+  return expenseIcons[props.account.category] || MoreIconOutlined
 })
 </script>
 

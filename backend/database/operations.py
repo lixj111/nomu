@@ -420,12 +420,34 @@ class DatabaseManager:
 
     def create_ledger(self, ledger: Ledger) -> int:
         """创建账本"""
+        # 检查同名账本
+        if self.check_ledger_name_exists(ledger.user_id, ledger.name):
+            raise ValueError("账本名称已存在")
+
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 INSERT INTO ledgers (user_id, name, description, icon, color, is_default)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (ledger.user_id, ledger.name, ledger.description, ledger.icon, ledger.color, ledger.is_default))
             return cursor.lastrowid
+
+    def check_ledger_name_exists(self, user_id: Optional[int], name: str, exclude_id: Optional[int] = None) -> bool:
+        """检查账本名称是否已存在"""
+        if user_id is None:
+            return False
+
+        with self._get_connection() as conn:
+            if exclude_id is not None:
+                cursor = conn.execute(
+                    "SELECT COUNT(*) FROM ledgers WHERE user_id = ? AND name = ? AND id != ? AND is_deleted = 0",
+                    (user_id, name, exclude_id)
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT COUNT(*) FROM ledgers WHERE user_id = ? AND name = ? AND is_deleted = 0",
+                    (user_id, name)
+                )
+            return cursor.fetchone()[0] > 0
 
     def get_ledger_by_id(self, ledger_id: int) -> Optional[Ledger]:
         """根据ID查询账本"""
@@ -499,6 +521,28 @@ class DatabaseManager:
                 (ledger_id,)
             )
             return cursor.fetchone()[0]
+
+    def get_ledger_accounts(self, ledger_id: int) -> List[Dict]:
+        """获取账本的所有账单（用于导出）"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT
+                    transaction_date,
+                    transaction_type,
+                    category,
+                    item_name,
+                    amount,
+                    merchant_name,
+                    notes,
+                    image_path
+                FROM accounts
+                WHERE ledger_id = ? AND is_deleted = 0
+                ORDER BY transaction_date DESC, created_at DESC
+            """, (ledger_id,))
+
+            columns = ['transaction_date', 'transaction_type', 'category', 'item_name',
+                      'amount', 'merchant_name', 'notes', 'image_path']
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     @staticmethod
     def _row_to_ledger(row) -> Ledger:
