@@ -173,6 +173,57 @@
       </a-form>
     </a-modal>
 
+    <!-- 导入数据弹窗 -->
+    <a-modal
+      v-model:open="showImportModal"
+      title="导入数据"
+      :footer="null"
+      width="90%"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="导入来源">
+          <a-radio-group v-model:value="importForm.source" @change="handleImportSourceChange">
+            <a-radio value="internal">本程序</a-radio>
+            <a-radio value="yimu">一木记账</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item label="目标账本">
+          <a-select
+            v-model:value="importForm.ledgerId"
+            placeholder="请选择要导入到的账本"
+            :options="ledgerStore.ledgers.map(l => ({ label: l.name, value: l.id }))"
+          />
+        </a-form-item>
+        <a-form-item label="选择文件">
+          <a-upload
+            :before-upload="handleBeforeUpload"
+            :file-list="fileList"
+            @remove="handleFileRemove"
+            accept=".xlsx,.xls"
+            :max-count="1"
+          >
+            <a-button>
+              <template #icon>
+                <UploadOutlined />
+              </template>
+              选择Excel文件
+            </a-button>
+          </a-upload>
+          <div v-if="importForm.source === 'internal'" class="upload-hint">
+            请选择从本程序导出的Excel文件
+          </div>
+          <div v-else class="upload-hint">
+            请选择一木记账导出的Excel文件（需包含类别、二级分类、备注等列）
+          </div>
+        </a-form-item>
+        <a-form-item>
+          <a-button type="primary" block :loading="importing" @click="handleStartImport" :disabled="!importForm.ledgerId || fileList.length === 0">
+            开始导入
+          </a-button>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
     <!-- 编辑账本弹窗 -->
     <a-modal
       v-model:open="showEditLedger"
@@ -278,7 +329,7 @@
 <script setup>
 import { ref, onMounted, h, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { RightOutlined } from '@ant-design/icons-vue'
+import { RightOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { useUserStore, useLedgerStore } from '@/stores'
 import dayjs from 'dayjs'
 
@@ -290,10 +341,19 @@ const showCreateLedger = ref(false)
 const showEditLedger = ref(false)
 const showLoginModal = ref(false)
 const showExportModal = ref(false)
+const showImportModal = ref(false)
 const isLoginMode = ref(true)
 const newLedger = ref({ name: '', description: '' })
 const editingLedger = ref({ id: null, name: '', description: '' })
 const exporting = ref(false)
+const importing = ref(false)
+const fileList = ref([])
+
+// 导入表单
+const importForm = ref({
+  source: 'internal',
+  ledgerId: null
+})
 
 // 导出表单
 const exportForm = ref({
@@ -402,6 +462,69 @@ const handleRegister = async () => {
     loginForm.value.password = ''
     loginForm.value.confirmPassword = ''
     message.error(error.message || '注册失败')
+  }
+}
+
+// 导入相关方法
+const handleImportSourceChange = () => {
+  // 切换导入来源时清空文件
+  fileList.value = []
+}
+
+const handleBeforeUpload = (file) => {
+  fileList.value = [file]
+  return false // 阻止自动上传
+}
+
+const handleFileRemove = () => {
+  fileList.value = []
+}
+
+const handleStartImport = async () => {
+  if (!importForm.value.ledgerId) {
+    message.warning('请选择目标账本')
+    return
+  }
+
+  if (fileList.value.length === 0) {
+    message.warning('请选择要导入的文件')
+    return
+  }
+
+  importing.value = true
+
+  try {
+    const formData = new FormData()
+    formData.append('file', fileList.value[0])
+    formData.append('source', importForm.value.source)
+    formData.append('ledger_id', importForm.value.ledgerId)
+
+    const response = await fetch('/api/v1/import/accounts', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      },
+      body: formData
+    })
+
+    const result = await response.json()
+
+    if (response.ok && result.code === 200) {
+      message.success(`导入成功，共导入 ${result.data.count} 条记录`)
+      showImportModal.value = false
+      // 重置表单
+      importForm.value = {
+        source: 'internal',
+        ledgerId: null
+      }
+      fileList.value = []
+    } else {
+      message.error(result.message || '导入失败')
+    }
+  } catch (error) {
+    message.error(error.message || '导入失败')
+  } finally {
+    importing.value = false
   }
 }
 
@@ -559,6 +682,12 @@ const ledgerActions = [
 ]
 
 const dataActions = [
+  {
+    title: '导入数据',
+    onClick: () => {
+      showImportModal.value = true
+    }
+  },
   {
     title: '导出数据',
     onClick: exportData
@@ -745,10 +874,20 @@ const handleUpdateLedger = async () => {
 .ledger-checkbox-items {
   max-height: 200px;
   overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .ledger-checkbox-item {
   padding: 6px 0;
-  display: block;
+  display: flex;
+  align-items: center;
+}
+
+.upload-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
 }
 </style>

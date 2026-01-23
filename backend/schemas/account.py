@@ -9,7 +9,7 @@ class AccountBase(BaseModel):
     """账单基础信息"""
 
     transaction_date: str = Field(..., description="交易日期 YYYY-MM-DD")
-    amount: Decimal = Field(..., gt=0, description="金额")
+    amount: Decimal = Field(..., ge=0, description="金额")
     item_name: str = Field(..., max_length=200, description="商品/服务名称")
     category: Optional[str] = Field(None, max_length=50, description="消费分类")
     merchant_name: Optional[str] = Field(None, max_length=100, description="商户名称")
@@ -27,7 +27,7 @@ class AccountUpdate(BaseModel):
     """更新账单请求"""
 
     transaction_date: Optional[str] = None
-    amount: Optional[Decimal] = Field(None, gt=0)
+    amount: Optional[Decimal] = Field(None, ge=0)
     item_name: Optional[str] = Field(None, max_length=200)
     category: Optional[str] = Field(None, max_length=50)
     merchant_name: Optional[str] = Field(None, max_length=100)

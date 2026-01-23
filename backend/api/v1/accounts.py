@@ -15,7 +15,7 @@ router = APIRouter(prefix="/accounts", tags=["账单"])
 async def get_accounts(
     ledger_id: Optional[int] = Query(None, description="账本ID"),
     page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(20, ge=1, le=100, description="每页大小"),
+    page_size: Optional[int] = Query(None, description="每页大小（不指定则根据数据量自动调整）"),
     start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
     category: Optional[str] = Query(None, description="分类"),
@@ -33,7 +33,7 @@ async def get_accounts(
             return ResponseModel(
                 code=200,
                 message="success",
-                data=AccountListResponse(total=0, page=page, page_size=page_size, pages=0, items=[])
+                data=AccountListResponse(total=0, page=page, page_size=page_size or 20, pages=0, items=[])
             )
 
     # 验证账本属于当前用户
@@ -43,6 +43,35 @@ async def get_accounts(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="无权访问该账本"
         )
+
+    # 如果未指定 page_size，先获取总数来决定合适的分页大小
+    if page_size is None:
+        total = db.get_account_count(
+            ledger_id=ledger_id,
+            start_date=start_date,
+            end_date=end_date,
+            category=category,
+            transaction_type=transaction_type
+        )
+
+        # 根据数据量动态调整 page_size
+        if total <= 20:
+            page_size = total
+        elif total <= 100:
+            page_size = 50
+        elif total <= 500:
+            page_size = 100
+        elif total <= 1000:
+            page_size = 200
+        else:
+            page_size = 500
+
+        # 第一页时返回所有数据
+        if page == 1:
+            page_size = total if total <= 1000 else 1000
+    else:
+        # 限制 page_size 最大值为 10000
+        page_size = min(page_size, 10000)
 
     # 查询账单
     result = db.get_accounts_paginated(

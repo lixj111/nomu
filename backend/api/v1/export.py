@@ -11,6 +11,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 import os
+from urllib.parse import quote
 
 router = APIRouter(prefix="/export", tags=["导出"])
 
@@ -186,9 +187,13 @@ async def export_accounts(
     # 保存文件
     wb.save(filepath)
 
-    # 返回文件
+    # 返回文件，使用 RFC 2231 编码中文文件名
+    encoded_filename = quote(filename, safe='')
     return FileResponse(
         path=filepath,
         filename=filename,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+        }
     )

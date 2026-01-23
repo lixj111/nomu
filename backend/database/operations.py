@@ -205,6 +205,38 @@ class DatabaseManager:
             cursor = conn.execute(query, params)
             return [self._row_to_account(row) for row in cursor.fetchall()]
 
+    def get_account_count(
+        self,
+        ledger_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        category: Optional[str] = None,
+        transaction_type: Optional[str] = None
+    ) -> int:
+        """获取账目总数"""
+        query = "SELECT COUNT(*) FROM accounts WHERE is_deleted = 0"
+        params = []
+
+        if ledger_id:
+            query += " AND ledger_id = ?"
+            params.append(ledger_id)
+        if start_date:
+            query += " AND transaction_date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND transaction_date <= ?"
+            params.append(end_date)
+        if category:
+            query += " AND category = ?"
+            params.append(category)
+        if transaction_type:
+            query += " AND transaction_type = ?"
+            params.append(transaction_type)
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(query, params)
+            return cursor.fetchone()[0]
+
     def get_accounts_paginated(
         self,
         ledger_id: Optional[int] = None,
@@ -248,7 +280,7 @@ class DatabaseManager:
 
         # 分页查询
         offset = (page - 1) * page_size
-        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        query += " ORDER BY transaction_date DESC, created_at DESC LIMIT ? OFFSET ?"
         params.extend([page_size, offset])
 
         with self._get_connection() as conn:

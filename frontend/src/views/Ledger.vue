@@ -14,7 +14,7 @@
         </a-space>
       </a-layout-header>
 
-      <a-layout-content class="page-content">
+      <a-layout-content class="page-content" @scroll="handleScroll">
         <!-- 账单列表（按日期分组） -->
         <a-spin :spinning="loading">
           <div v-if="groupedAccounts.length === 0" class="empty-state">
@@ -34,6 +34,13 @@
                   @edit="handleEdit" @delete="handleDelete" />
               </div>
             </div>
+          </div>
+          <!-- 加载更多提示 -->
+          <div v-if="loadingMore" class="loading-more">
+            <a-spin size="small" /> 加载中...
+          </div>
+          <div v-else-if="!hasMore && groupedAccounts.length > 0" class="no-more">
+            没有更多了
           </div>
         </a-spin>
       </a-layout-content>
@@ -145,21 +152,60 @@ onMounted(() => {
 // 当从详情页返回时刷新列表
 onActivated(() => {
   if (ledgerStore.currentLedgerId) {
+    hasMore.value = true
+    loadingMore.value = false
     loadAccounts()
   }
 })
 
 const handleLedgerChange = (ledgerId) => {
   ledgerStore.switchLedger(ledgerId)
+  hasMore.value = true
+  loadingMore.value = false
   loadAccounts()
 }
 
+const loadingMore = ref(false)
+const hasMore = ref(true)
+
 const loadAccounts = async () => {
   loading.value = true
+  loadingMore.value = false
+  hasMore.value = true
   try {
-    await accountStore.fetchAccounts()
+    await accountStore.fetchAccounts({ page: 1, page_size: 20 })
   } finally {
     loading.value = false
+  }
+}
+
+const loadMore = async () => {
+  if (loadingMore.value || !hasMore.value) return
+
+  loadingMore.value = true
+  try {
+    const currentPage = accountStore.pagination.page
+    const totalPages = accountStore.pagination.pages
+
+    if (currentPage >= totalPages) {
+      hasMore.value = false
+      return
+    }
+
+    await accountStore.fetchAccounts({
+      page: currentPage + 1,
+      page_size: 20
+    })
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+// 监听滚动，触底加载更多
+const handleScroll = (e) => {
+  const { scrollTop, scrollHeight, clientHeight } = e.target
+  if (scrollTop + clientHeight >= scrollHeight - 50) {
+    loadMore()
   }
 }
 
@@ -306,5 +352,13 @@ const handleFormSuccess = () => {
 
 .date-accounts :deep(.account-card:last-child) {
   border-bottom: none;
+}
+
+.loading-more,
+.no-more {
+  text-align: center;
+  padding: 16px;
+  color: #999;
+  font-size: 14px;
 }
 </style>

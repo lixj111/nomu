@@ -21,13 +21,21 @@ export const useAccountStore = defineStore('account', () => {
     const ledgerStore = useLedgerStore()
     if (!ledgerStore.currentLedgerId) return
 
+    const isLoadMore = params.page > 1
     loading.value = true
     try {
       const res = await accountApi.getAccounts({
         ledger_id: ledgerStore.currentLedgerId,
         ...params
       })
-      accounts.value = res.data.items
+
+      // 如果是加载更多，追加数据；否则替换
+      if (isLoadMore) {
+        accounts.value = [...accounts.value, ...res.data.items]
+      } else {
+        accounts.value = res.data.items
+      }
+
       pagination.value = {
         total: res.data.total,
         page: res.data.page,
@@ -36,7 +44,9 @@ export const useAccountStore = defineStore('account', () => {
       }
     } catch (error) {
       console.log('获取账单列表失败:', error.message)
-      accounts.value = []
+      if (!isLoadMore) {
+        accounts.value = []
+      }
     } finally {
       loading.value = false
     }

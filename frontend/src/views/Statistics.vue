@@ -866,8 +866,8 @@ const loadStatistics = async () => {
   if (!ledgerStore.currentLedgerId) return
 
   try {
-    // 重新加载账单数据
-    await accountStore.fetchAccounts()
+    // 统计页面需要加载所有数据，不传 page_size 让后端根据数据量自动调整
+    await accountStore.fetchAccounts({})
 
     // 更新图表
     await nextTick()
@@ -880,7 +880,7 @@ const loadStatistics = async () => {
 
 onMounted(() => {
   if (ledgerStore.currentLedgerId) {
-    accountStore.fetchAccounts().then(() => {
+    accountStore.fetchAccounts({}).then(() => {
       nextTick(() => {
         initBarChart()
         initPieChart()

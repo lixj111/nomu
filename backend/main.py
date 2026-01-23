@@ -3,9 +3,21 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+import logging
+import sys
 
 from core.config import settings
-from api.v1 import auth, ledgers, accounts, upload, statistics, export
+from api.v1 import auth, ledgers, accounts, upload, statistics, export, import_data
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log', encoding='utf-8')
+    ]
+)
 
 # 创建应用
 app = FastAPI(
@@ -39,6 +51,7 @@ app.include_router(accounts.router, prefix="/api/v1", tags=["账单"])
 app.include_router(upload.router, prefix="/api/v1", tags=["上传"])
 app.include_router(statistics.router, prefix="/api/v1", tags=["统计"])
 app.include_router(export.router, prefix="/api/v1", tags=["导出"])
+app.include_router(import_data.router, prefix="/api/v1", tags=["导入"])
 
 
 @app.get("/")
