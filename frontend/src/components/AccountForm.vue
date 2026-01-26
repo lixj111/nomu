@@ -141,12 +141,12 @@ const expenseCategories = [
 // 收入分类
 const incomeCategories = [
   { label: '工资', value: '工资', color: '#52c41a', icon: WalletOutlined },
-  { label: '奖金', value: '奖金', color: '#73d13d', icon: TrophyOutlined },
-  { label: '兼职外快', value: '兼职外快', color: '#95de64', icon: TeamOutlined },
-  { label: '二手闲置', value: '二手闲置', color: '#b7eb8f', icon: SwapOutlined },
-  { label: '补贴', value: '补贴', color: '#389e0d', icon: TransactionOutlined },
-  { label: '红包', value: '红包', color: '#5b8c00', icon: DollarOutlined },
-  { label: '理财盈利', value: '理财盈利', color: '#135200', icon: RiseOutlined },
+  { label: '奖金', value: '奖金', color: '#faad14', icon: TrophyOutlined },
+  { label: '兼职外快', value: '兼职外快', color: '#13c2c2', icon: TeamOutlined },
+  { label: '二手闲置', value: '二手闲置', color: '#eb2f96', icon: SwapOutlined },
+  { label: '补贴', value: '补贴', color: '#722ed1', icon: TransactionOutlined },
+  { label: '红包', value: '红包', color: '#fa541c', icon: DollarOutlined },
+  { label: '理财盈利', value: '理财盈利', color: '#2f54eb', icon: RiseOutlined },
   { label: '其他', value: '其他', color: '#adb5bd', icon: MoreOutlined }
 ]
 

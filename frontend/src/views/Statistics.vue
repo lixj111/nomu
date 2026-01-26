@@ -182,7 +182,7 @@
           class="category-item"
         >
           <div class="category-icon" :style="{ background: getCategoryColor(item.category) }">
-            {{ item.category[0] }}
+            <component :is="getCategoryIcon(item.category)" />
           </div>
           <div class="category-info">
             <div class="category-name">{{ item.category }}</div>
@@ -232,13 +232,57 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { Modal } from 'ant-design-vue'
-import { LeftOutlined, RightOutlined, DownOutlined, UpOutlined } from '@ant-design/icons-vue'
+import {
+  LeftOutlined,
+  RightOutlined,
+  DownOutlined,
+  UpOutlined,
+  CoffeeOutlined,
+  CarOutlined,
+  ShoppingOutlined,
+  GiftOutlined,
+  HomeOutlined,
+  BookOutlined,
+  HeartOutlined,
+  MoreOutlined,
+  WalletOutlined,
+  TrophyOutlined,
+  TeamOutlined,
+  SwapOutlined,
+  TransactionOutlined,
+  DollarOutlined,
+  RiseOutlined
+} from '@ant-design/icons-vue'
 import { useAccountStore, useLedgerStore } from '@/stores'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
 
 const accountStore = useAccountStore()
 const ledgerStore = useLedgerStore()
+
+// 支出分类配置
+const expenseCategories = [
+  { label: '食品餐饮', value: '食品餐饮', color: '#ff6b6b', icon: CoffeeOutlined },
+  { label: '出行交通', value: '出行交通', color: '#4dabf7', icon: CarOutlined },
+  { label: '购物消费', value: '购物消费', color: '#ff922b', icon: ShoppingOutlined },
+  { label: '休闲娱乐', value: '休闲娱乐', color: '#cc5de8', icon: GiftOutlined },
+  { label: '居家生活', value: '居家生活', color: '#20c997', icon: HomeOutlined },
+  { label: '文化教育', value: '文化教育', color: '#fab005', icon: BookOutlined },
+  { label: '健康医疗', value: '健康医疗', color: '#51cf66', icon: HeartOutlined },
+  { label: '其他', value: '其他', color: '#adb5bd', icon: MoreOutlined }
+]
+
+// 收入分类配置
+const incomeCategories = [
+  { label: '工资', value: '工资', color: '#52c41a', icon: WalletOutlined },
+  { label: '奖金', value: '奖金', color: '#faad14', icon: TrophyOutlined },
+  { label: '兼职外快', value: '兼职外快', color: '#13c2c2', icon: TeamOutlined },
+  { label: '二手闲置', value: '二手闲置', color: '#eb2f96', icon: SwapOutlined },
+  { label: '补贴', value: '补贴', color: '#722ed1', icon: TransactionOutlined },
+  { label: '红包', value: '红包', color: '#fa541c', icon: DollarOutlined },
+  { label: '理财盈利', value: '理财盈利', color: '#2f54eb', icon: RiseOutlined },
+  { label: '其他', value: '其他', color: '#adb5bd', icon: MoreOutlined }
+]
 
 // 标签页配置
 const tabs = [
@@ -348,11 +392,25 @@ const categoryColors = {
   '居家生活': '#20c997',
   '文化教育': '#fab005',
   '健康医疗': '#51cf66',
-  '其他': '#adb5bd'
+  '其他': '#adb5bd',
+  '工资': '#52c41a',
+  '奖金': '#faad14',
+  '兼职外快': '#13c2c2',
+  '二手闲置': '#eb2f96',
+  '补贴': '#722ed1',
+  '红包': '#fa541c',
+  '理财盈利': '#2f54eb'
 }
 
 const getCategoryColor = (category) => {
   return categoryColors[category] || '#1890ff'
+}
+
+// 获取分类图标
+const getCategoryIcon = (category) => {
+  const allCategories = [...expenseCategories, ...incomeCategories]
+  const found = allCategories.find(c => c.value === category)
+  return found ? found.icon : MoreOutlined
 }
 
 // 计算时间显示标题
@@ -371,7 +429,8 @@ const periodLabel = computed(() => {
   if (activeTab.value === 'month') {
     return '月'
   } else if (activeTab.value === 'year') {
-    return '年'
+    // 年统计且选择"所有"时显示"总"，否则显示"年"
+    return currentYear.value === null ? '总' : '年'
   } else {
     return '期间'
   }
@@ -430,13 +489,48 @@ const barChartData = computed(() => {
   const accounts = getPeriodAccounts()
   if (accounts.length === 0) return { dates: [], expense: [], income: [] }
 
-  // 获取当前周期内的所有日期
   const { start, end } = getDateRange()
   const startDate = dayjs(start)
   const endDate = dayjs(end)
-  const allDates = []
 
-  // 生成所有日期
+  // 年统计且选择"所有"时，直接按月分组
+  if (activeTab.value === 'year' && currentYear.value === null) {
+    const monthlyData = {}
+
+    // 初始化12个月的数据
+    for (let i = 1; i <= 12; i++) {
+      monthlyData[i] = { expense: 0, income: 0 }
+    }
+
+    // 按月统计
+    accounts.forEach(account => {
+      const date = dayjs(account.transaction_date)
+      const month = date.month() + 1  // 1-12
+      const amount = parseFloat(account.amount)
+
+      if (account.transaction_type === '收入') {
+        monthlyData[month].income += amount
+      } else {
+        monthlyData[month].expense += amount
+      }
+    })
+
+    // 生成12个月的数据
+    const dates = []
+    const expense = []
+    const income = []
+
+    for (let i = 1; i <= 12; i++) {
+      dates.push(`${i}月`)
+      expense.push(monthlyData[i].expense)
+      income.push(monthlyData[i].income)
+    }
+
+    return { dates, expense, income }
+  }
+
+  // 其他情况：生成所有日期
+  const allDates = []
   let currentDate = startDate
   while (currentDate.isBefore(endDate) || currentDate.isSame(endDate, 'day')) {
     allDates.push(currentDate.format('YYYY-MM-DD'))
@@ -556,29 +650,49 @@ const tableData = computed(() => {
   const accounts = getPeriodAccounts()
   if (accounts.length === 0) return []
 
-  // 按日期分组
+  // 年统计时按月分组，其他情况按日期分组
+  const isYearMode = activeTab.value === 'year'
+  const isAllYears = isYearMode && currentYear.value === null
   const grouped = {}
+
   accounts.forEach(account => {
     const date = account.transaction_date
-    if (!grouped[date]) {
-      grouped[date] = { income: 0, expense: 0 }
+
+    // 年统计"所有"：按月分组但需要显示年份（使用 YYYY-MM 作为key）
+    // 年统计具体年份：按月分组（使用 YYYY-MM 作为key）
+    // 月统计/自定义：按日期分组（使用 YYYY-MM-DD 作为key）
+    const key = isYearMode ? date.substring(0, 7) : date
+
+    if (!grouped[key]) {
+      grouped[key] = { income: 0, expense: 0 }
     }
     const amount = parseFloat(account.amount)
     if (account.transaction_type === '收入') {
-      grouped[date].income += amount
+      grouped[key].income += amount
     } else {
-      grouped[date].expense += amount
+      grouped[key].expense += amount
     }
   })
 
-  // 排序，计算当天/当月结余（不累计）
-  const dates = Object.keys(grouped).sort()
+  // 排序
+  const keys = Object.keys(grouped).sort()
 
-  return dates.map(date => {
-    const row = grouped[date]
-    // 使用当天/当月的结余（收入 - 支出）
+  return keys.map(key => {
+    const row = grouped[key]
+    // 年统计"所有"：显示"2024年1月"
+    // 年统计具体年份：显示"1月"、"2月"
+    // 月统计/自定义：显示"1月15日"
+    let dateDisplay
+    if (isAllYears) {
+      dateDisplay = dayjs(key + '-01').format('YYYY年M月')
+    } else if (isYearMode) {
+      dateDisplay = dayjs(key + '-01').format('M月')
+    } else {
+      dateDisplay = dayjs(key).format('M月D日')
+    }
+
     return {
-      date: dayjs(date).format(activeTab.value === 'year' ? 'M月' : 'M月D日'),
+      date: dateDisplay,
       income: row.income,
       expense: row.expense,
       balance: row.income - row.expense
@@ -770,6 +884,12 @@ const selectYear = (yearOption) => {
 // 切换标签
 const switchTab = (tab) => {
   activeTab.value = tab
+  // 切换到月统计时，设置为本月
+  if (tab === 'month') {
+    const now = dayjs()
+    currentYear.value = now.year()
+    currentMonth.value = now.month() + 1
+  }
   loadStatistics()
 }
 
@@ -866,8 +986,14 @@ const loadStatistics = async () => {
   if (!ledgerStore.currentLedgerId) return
 
   try {
-    // 统计页面需要加载所有数据，不传 page_size 让后端根据数据量自动调整
-    await accountStore.fetchAccounts({})
+    // 获取当前时间范围
+    const { start, end } = getDateRange()
+
+    // 统计页面传入时间段参数，让后端筛选数据
+    await accountStore.fetchAccounts({
+      start_date: start,
+      end_date: end
+    })
 
     // 更新图表
     await nextTick()
@@ -880,7 +1006,11 @@ const loadStatistics = async () => {
 
 onMounted(() => {
   if (ledgerStore.currentLedgerId) {
-    accountStore.fetchAccounts({}).then(() => {
+    const { start, end } = getDateRange()
+    accountStore.fetchAccounts({
+      start_date: start,
+      end_date: end
+    }).then(() => {
       nextTick(() => {
         initBarChart()
         initPieChart()

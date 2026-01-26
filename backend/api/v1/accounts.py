@@ -66,9 +66,9 @@ async def get_accounts(
         else:
             page_size = 500
 
-        # 第一页时返回所有数据
+        # 第一页时返回所有数据（无上限）
         if page == 1:
-            page_size = total if total <= 1000 else 1000
+            page_size = total
     else:
         # 限制 page_size 最大值为 10000
         page_size = min(page_size, 10000)

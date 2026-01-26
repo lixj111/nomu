@@ -24,10 +24,20 @@ export const useAccountStore = defineStore('account', () => {
     const isLoadMore = params.page > 1
     loading.value = true
     try {
-      const res = await accountApi.getAccounts({
+      // 构建请求参数，过滤掉 undefined 值
+      const requestParams = {
         ledger_id: ledgerStore.currentLedgerId,
         ...params
+      }
+
+      // 移除值为 undefined 的参数
+      Object.keys(requestParams).forEach(key => {
+        if (requestParams[key] === undefined) {
+          delete requestParams[key]
+        }
       })
+
+      const res = await accountApi.getAccounts(requestParams)
 
       // 如果是加载更多，追加数据；否则替换
       if (isLoadMore) {

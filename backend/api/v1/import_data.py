@@ -37,23 +37,18 @@ def parse_internal_format(df: pd.DataFrame) -> list:
 
 
 def parse_yimu_format(df: pd.DataFrame) -> list:
-    """解析一木记账导出的Excel格式"""
+    """解析一木记账导出的Excel格式
+
+    一木记账Excel列对应关系：
+    - 日期 → transaction_date
+    - 收支类型（收入/支出）→ transaction_type
+    - 金额 → amount
+    - 类别 → category（一级分类）
+    - 二级分类 → item_name
+    - 备注 → notes
+    """
     logger.info(f"[一木记账] 开始解析，DataFrame shape: {df.shape}")
     accounts = []
-
-    # 一木记账的列名映射（可能需要根据实际导出文件调整）
-    column_mapping = {
-        '交易时间': 'transaction_date',
-        '日期': 'transaction_date',
-        '类别': 'transaction_type',
-        '二级分类': 'category',
-        '金额': 'amount',
-        '备注': 'notes',
-        '商品名称': 'item_name',
-        '项目': 'item_name',
-        '商家': 'merchant_name',
-        '地点': 'merchant_name'
-    }
 
     # 先找到实际使用的列名
     actual_columns = df.columns.tolist()
@@ -63,20 +58,43 @@ def parse_yimu_format(df: pd.DataFrame) -> list:
     for idx, row in df.iterrows():
         try:
             # 跳过空行
-            date_value = row.get('交易时间') or row.get('日期')
+            date_value = row.get('日期')
             if pd.isna(date_value):
                 logger.debug(f"[一木记账] 跳过空行，行号: {idx}")
                 continue
 
-            # 解析交易类型（类别）
-            transaction_type = row.get('类别', '支出')
+            # 解析交易类型（收支类型）
+            transaction_type = row.get('收支类型')
             if pd.isna(transaction_type):
-                transaction_type = '支出'
+                # 根据金额正负判断收支类型
+                amount_value = row.get('金额', 0)
+                if not pd.isna(amount_value):
+                    transaction_type = '收入' if float(amount_value) > 0 else '支出'
+                else:
+                    transaction_type = '支出'
+            else:
+                transaction_type = str(transaction_type)
 
-            # 解析分类（二级分类）
-            category = row.get('二级分类', '未分类')
+            # 解析类别（一级分类）→ category
+            category = row.get('类别', '未分类')
             if pd.isna(category):
                 category = '未分类'
+            else:
+                category = str(category)
+
+            # 解析二级分类 → item_name
+            item_name = row.get('二级分类', '')
+            if pd.isna(item_name):
+                item_name = ''
+            else:
+                item_name = str(item_name)
+
+            # 解析备注 → notes
+            notes = row.get('备注', '')
+            if pd.isna(notes):
+                notes = ''
+            else:
+                notes = str(notes)
 
             # 解析金额
             amount_value = row.get('金额')
@@ -85,19 +103,18 @@ def parse_yimu_format(df: pd.DataFrame) -> list:
             else:
                 amount_value = float(amount_value)
 
-            # 解析商品名称，优先使用商品名称、项目、备注，最后使用分类
-            item_name = row.get('商品名称') or row.get('项目') or row.get('备注')
-            if pd.isna(item_name):
+            # 确保item_name不为空，如果为空则使用类别
+            if not item_name:
                 item_name = category
 
             account = {
                 'transaction_date': str(date_value)[:10],
-                'transaction_type': str(transaction_type),
-                'category': str(category),
-                'item_name': str(item_name),
+                'transaction_type': transaction_type,
+                'category': category,        # 类别 → category
+                'item_name': item_name,      # 二级分类 → item_name
                 'amount': abs(amount_value),  # 确保金额为正数
-                'merchant_name': str(row.get('商家') or row.get('地点') or ''),
-                'notes': str(row.get('备注') or ''),
+                'merchant_name': '',
+                'notes': notes,              # 备注 → notes
                 'image_path': ''
             }
             logger.debug(f"[一木记账] 解析行 {idx}: {account}")

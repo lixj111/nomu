@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { CameraOutlined, PlusOutlined } from '@ant-design/icons-vue'
@@ -149,6 +149,16 @@ onMounted(() => {
   }
 })
 
+// 监听账本ID变化，解决页面刷新时异步加载问题
+watch(() => ledgerStore.currentLedgerId, (newId, oldId) => {
+  // 从无到有，或账本切换时重新加载
+  if (newId && newId !== oldId) {
+    hasMore.value = true
+    loadingMore.value = false
+    loadAccounts()
+  }
+})
+
 // 当从详情页返回时刷新列表
 onActivated(() => {
   if (ledgerStore.currentLedgerId) {
@@ -173,7 +183,13 @@ const loadAccounts = async () => {
   loadingMore.value = false
   hasMore.value = true
   try {
-    await accountStore.fetchAccounts({ page: 1, page_size: 20 })
+    // 明确清空时间筛选，只传入分页参数
+    await accountStore.fetchAccounts({
+      page: 1,
+      page_size: 20,
+      start_date: null,
+      end_date: null
+    })
   } finally {
     loading.value = false
   }
@@ -248,9 +264,11 @@ const handleUploadSuccess = (result) => {
 
 const handleFormSuccess = () => {
   showFormModal.value = false
+  // 编辑时store已更新，无需重新加载；新增时需要刷新列表
+  if (!editingAccount.value) {
+    loadAccounts()
+  }
   editingAccount.value = null
-  // message.success(editingAccount.value ? '更新成功' : '添加成功')
-  loadAccounts()
 }
 </script>
 

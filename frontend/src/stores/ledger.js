@@ -25,8 +25,15 @@ export const useLedgerStore = defineStore('ledger', () => {
       const res = await ledgerApi.getLedgers()
       ledgers.value = res.data
 
-      // 如果没有选中的账本，使用默认账本
+      // 如果没有选中的账本ID，使用默认账本
       if (!currentLedgerId.value && defaultLedger.value) {
+        currentLedgerId.value = defaultLedger.value.id
+        saveCurrentLedgerId()
+      }
+
+      // 如果当前选中的账本ID不在列表中（如被删除），切换到默认账本
+      const currentLedgerExists = ledgers.value.find(l => l.id === currentLedgerId.value)
+      if (!currentLedgerExists && defaultLedger.value) {
         currentLedgerId.value = defaultLedger.value.id
         saveCurrentLedgerId()
       }
