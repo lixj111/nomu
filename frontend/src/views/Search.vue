@@ -1,30 +1,37 @@
 <template>
-  <div class="ledger-page">
-    <!-- 顶部栏 -->
+  <div class="search-page">
+    <!-- 顶部搜索栏 -->
     <a-layout class="page-layout">
       <a-layout-header class="page-header">
-        <LedgerSelector @change="handleLedgerChange" />
-        <a-space>
-          <a-button @click="goToSearch">
-            <template #icon>
-              <SearchOutlined />
-            </template>
-            搜索
-          </a-button>
-          <a-button type="primary" @click="openAddModal">
-            <template #icon>
-              <PlusOutlined />
-            </template>
-            记一笔
-          </a-button>
-        </a-space>
+        <a-button type="text" @click="goBack" class="back-button">
+          <template #icon>
+            <LeftOutlined />
+          </template>
+          返回
+        </a-button>
+        <a-input
+          v-model:value="searchKeyword"
+          placeholder="搜索账单"
+          allow-clear
+          size="large"
+          @pressEnter="handleSearch"
+          @change="handleInputChange"
+          class="search-input"
+        >
+          <template #prefix>
+            <SearchOutlined />
+          </template>
+        </a-input>
       </a-layout-header>
 
-      <a-layout-content class="page-content" @scroll="handleScroll">
-        <!-- 账单列表（按日期分组） -->
+      <a-layout-content class="page-content">
+        <!-- 搜索结果 -->
         <a-spin :spinning="loading">
-          <div v-if="groupedAccounts.length === 0" class="empty-state">
-            <a-empty description="暂无账单，点击右上角记一笔或上传账单" />
+          <div v-if="!hasSearched" class="empty-state">
+            <a-empty description="请输入关键词搜索账单" />
+          </div>
+          <div v-else-if="filteredAccounts.length === 0" class="empty-state">
+            <a-empty description="未找到相关账单" />
           </div>
           <div v-else class="account-groups">
             <div v-for="group in groupedAccounts" :key="group.date" class="date-group">
@@ -41,30 +48,11 @@
               </div>
             </div>
           </div>
-          <!-- 加载更多提示 -->
-          <div v-if="loadingMore" class="loading-more">
-            <a-spin size="small" /> 加载中...
-          </div>
-          <div v-else-if="!hasMore && groupedAccounts.length > 0" class="no-more">
-            没有更多了
-          </div>
         </a-spin>
       </a-layout-content>
-
-      <!-- 可拖动悬浮上传按钮 -->
-      <DraggableFloatButton @click="showUploadModal = true">
-        <template #icon>
-          <CameraOutlined />
-        </template>
-      </DraggableFloatButton>
     </a-layout>
 
-    <!-- 上传弹窗 -->
-    <a-modal v-model:open="showUploadModal" title="上传账单" :footer="null" width="90%">
-      <ImageUploader @uploaded="handleUploadSuccess" />
-    </a-modal>
-
-    <!-- 添加/编辑账单弹窗 -->
+    <!-- 编辑弹窗 -->
     <a-drawer v-model:open="showFormModal" :title="editingAccount ? '编辑账单' : '记一笔'" placement="right" :width="400">
       <AccountForm :account="editingAccount" @success="handleFormSuccess" @cancel="showFormModal = false" />
     </a-drawer>
@@ -72,38 +60,54 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, watch, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { CameraOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons-vue'
-import { useAccountStore, useLedgerStore } from '@/stores'
+import { SearchOutlined, LeftOutlined } from '@ant-design/icons-vue'
+import { useAccountStore } from '@/stores'
 import AccountCard from '@/components/AccountCard.vue'
-import ImageUploader from '@/components/ImageUploader.vue'
 import AccountForm from '@/components/AccountForm.vue'
-import LedgerSelector from '@/components/LedgerSelector.vue'
-import DraggableFloatButton from '@/components/DraggableFloatButton.vue'
 import dayjs from 'dayjs'
 
 const router = useRouter()
-
 const accountStore = useAccountStore()
-const ledgerStore = useLedgerStore()
 
 const loading = ref(false)
-const showUploadModal = ref(false)
 const showFormModal = ref(false)
 const editingAccount = ref(null)
+const searchKeyword = ref('')
+const hasSearched = ref(false)
 
 const accounts = computed(() => accountStore.accounts)
 
 // 星期数组
 const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
+// 搜索过滤后的账单
+const filteredAccounts = computed(() => {
+  if (!searchKeyword.value || !hasSearched.value) {
+    return []
+  }
+
+  const keyword = searchKeyword.value.toLowerCase().trim()
+  return accounts.value.filter(account => {
+    // 搜索字段：商品名称、分类、备注、商家、交易类型
+    const itemMatch = account.item_name?.toLowerCase().includes(keyword)
+    const categoryMatch = account.category?.toLowerCase().includes(keyword)
+    const notesMatch = account.notes?.toLowerCase().includes(keyword)
+    const merchantMatch = account.merchant_name?.toLowerCase().includes(keyword)
+    const typeMatch = account.transaction_type?.toLowerCase().includes(keyword)
+    const amountMatch = account.amount?.toString().includes(keyword)
+
+    return itemMatch || categoryMatch || notesMatch || merchantMatch || typeMatch || amountMatch
+  })
+})
+
 // 按日期分组账单
 const groupedAccounts = computed(() => {
   const groups = {}
 
-  accounts.value.forEach(account => {
+  filteredAccounts.value.forEach(account => {
     const date = account.transaction_date
     if (!groups[date]) {
       groups[date] = {
@@ -150,137 +154,47 @@ const groupedAccounts = computed(() => {
 })
 
 onMounted(() => {
-  if (ledgerStore.currentLedgerId) {
-    loadAccounts()
-  }
+  // 加载所有账单数据用于搜索
+  loadAllAccounts()
 })
 
-// 监听账本ID变化，解决页面刷新时异步加载问题
-watch(() => ledgerStore.currentLedgerId, (newId, oldId) => {
-  // 从无到有，或账本切换时重新加载
-  if (newId && newId !== oldId) {
-    hasMore.value = true
-    loadingMore.value = false
-    loadAccounts()
-  }
-})
-
-// 当从详情页返回时刷新列表
-onActivated(() => {
-  if (ledgerStore.currentLedgerId) {
-    hasMore.value = true
-    loadingMore.value = false
-    loadAccounts().then(() => {
-      // 恢复滚动位置
-      nextTick(() => {
-        const contentEl = document.querySelector('.page-content')
-        if (contentEl && savedScrollPosition.value > 0) {
-          contentEl.scrollTop = savedScrollPosition.value
-        }
-      })
-    })
-  }
-})
-
-const handleLedgerChange = (ledgerId) => {
-  ledgerStore.switchLedger(ledgerId)
-  hasMore.value = true
-  loadingMore.value = false
-  loadAccounts()
+const goBack = () => {
+  router.back()
 }
 
-const loadingMore = ref(false)
-const hasMore = ref(true)
-const lastScrollHeight = ref(0)
-const savedScrollPosition = ref(0)
-
-const loadAccounts = async () => {
+const loadAllAccounts = async () => {
   loading.value = true
-  loadingMore.value = false
-  hasMore.value = true
-  lastScrollHeight.value = 0
   try {
-    // 明确清空时间筛选，只传入分页参数
+    // 加载所有账单数据，不分页
     await accountStore.fetchAccounts({
       page: 1,
-      page_size: 20,
+      page_size: 99999,
       start_date: null,
       end_date: null
     })
-    // 更新当前滚动高度
-    await nextTick()
-    const contentEl = document.querySelector('.page-content')
-    if (contentEl) {
-      lastScrollHeight.value = contentEl.scrollHeight
-    }
   } finally {
     loading.value = false
   }
 }
 
-const loadMore = async () => {
-  if (loadingMore.value || !hasMore.value) return
-
-  loadingMore.value = true
-  try {
-    const currentPage = accountStore.pagination.page
-    const totalPages = accountStore.pagination.pages
-
-    if (currentPage >= totalPages) {
-      hasMore.value = false
-      return
-    }
-
-    await accountStore.fetchAccounts({
-      page: currentPage + 1,
-      page_size: 20
-    })
-
-    // 更新滚动高度，防止立即再次触发
-    await nextTick()
-    const contentEl = document.querySelector('.page-content')
-    if (contentEl) {
-      lastScrollHeight.value = contentEl.scrollHeight
-    }
-  } finally {
-    loadingMore.value = false
+// 实时搜索
+const handleInputChange = () => {
+  if (searchKeyword.value.trim()) {
+    hasSearched.value = true
+  } else {
+    hasSearched.value = false
   }
 }
 
-// 监听滚动，触底加载更多
-const handleScroll = (e) => {
-  const { scrollTop, scrollHeight, clientHeight } = e.target
-
-  // 检查是否正在加载或已无更多数据
-  if (loadingMore.value || !hasMore.value) return
-
-  // 到达底部时加载更多
-  if (scrollTop + clientHeight >= scrollHeight - 50) {
-    loadMore()
-  }
-
-  // 更新滚动高度记录
-  if (scrollHeight !== lastScrollHeight.value) {
-    lastScrollHeight.value = scrollHeight
+// 按回车搜索
+const handleSearch = () => {
+  if (searchKeyword.value.trim()) {
+    hasSearched.value = true
   }
 }
 
 const showDetail = (account) => {
-  // 保存当前滚动位置
-  const contentEl = document.querySelector('.page-content')
-  if (contentEl) {
-    savedScrollPosition.value = contentEl.scrollTop
-  }
   router.push(`/bill/${account.id}`)
-}
-
-const openAddModal = () => {
-  editingAccount.value = null
-  showFormModal.value = true
-}
-
-const goToSearch = () => {
-  router.push('/search')
 }
 
 const handleEdit = (account) => {
@@ -296,7 +210,7 @@ const handleDelete = (account) => {
       try {
         await accountStore.deleteAccount(account.id)
         message.success('删除成功')
-        loadAccounts()
+        loadAllAccounts()
       } catch (error) {
         message.error(error.message || '删除失败')
       }
@@ -304,25 +218,18 @@ const handleDelete = (account) => {
   })
 }
 
-const handleUploadSuccess = (result) => {
-  console.log('[Ledger] handleUploadSuccess 被调用，结果:', result)
-  showUploadModal.value = false
-  message.success('识别成功')
-  loadAccounts()
-}
-
 const handleFormSuccess = () => {
   showFormModal.value = false
   // 编辑时store已更新，无需重新加载；新增时需要刷新列表
   if (!editingAccount.value) {
-    loadAccounts()
+    loadAllAccounts()
   }
   editingAccount.value = null
 }
 </script>
 
 <style scoped>
-.ledger-page {
+.search-page {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -337,13 +244,24 @@ const handleFormSuccess = () => {
 
 .page-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  gap: 12px;
+  padding: 12px 16px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
   height: auto;
   line-height: normal;
+}
+
+.back-button {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.search-input {
+  flex: 1;
+  max-width: none;
 }
 
 .page-content {
@@ -419,13 +337,5 @@ const handleFormSuccess = () => {
 
 .date-accounts :deep(.account-card:last-child) {
   border-bottom: none;
-}
-
-.loading-more,
-.no-more {
-  text-align: center;
-  padding: 16px;
-  color: #999;
-  font-size: 14px;
 }
 </style>

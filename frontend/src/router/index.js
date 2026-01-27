@@ -13,6 +13,12 @@ const routes = [
     meta: { title: '账本', icon: 'book', requiresAuth: true }
   },
   {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/Search.vue'),
+    meta: { title: '搜索', requiresAuth: true }
+  },
+  {
     path: '/bill/:id',
     name: 'BillDetail',
     component: () => import('@/views/BillDetail.vue'),
