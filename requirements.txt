@@ -1,5 +1,6 @@
 # Core dependencies
 zai-sdk==0.2.1
+sniffio
 
 # Environment variables
 python-dotenv==1.0.1
@@ -12,6 +13,7 @@ python-multipart==0.0.6
 # Data validation
 pydantic==2.10.6
 pydantic[all]
+pydantic[email]
 pydantic-settings==2.12.0
 
 # Authentication and security
@@ -23,4 +25,4 @@ aiofiles==25.1.0
 
 # Excel export/import
 openpyxl==3.1.2
-pandas==3.0.0
+pandas==2.3.2

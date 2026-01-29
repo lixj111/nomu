@@ -1,7 +1,7 @@
 """后端配置管理"""
 import os
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
@@ -35,13 +35,21 @@ class Settings(BaseSettings):
 
     # 识别配置
     CONFIDENCE_THRESHOLD: float = 0.7
+    AUTO_SAVE: bool = True
+
+    # 日志配置
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "accounting.log"
 
     # HTTP 超时配置
     API_TIMEOUT: int = 300  # API 请求超时时间（秒），默认 5 分钟
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).parent.parent.parent / ".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore"
+    )
 
 
 # 全局配置实例

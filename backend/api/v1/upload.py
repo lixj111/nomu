@@ -1,4 +1,5 @@
 """文件上传相关API"""
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from typing import Optional
 from database.models import User
@@ -12,6 +13,7 @@ from core.config import settings
 
 router = APIRouter(prefix="/upload", tags=["上传"])
 
+logger = logging.getLogger(__name__)
 
 @router.post("/receipt", response_model=ResponseModel[AccountResponse])
 async def upload_receipt(
@@ -67,6 +69,7 @@ async def upload_receipt(
             detail=str(e)
         )
     except Exception as e:
+        logger.error(f"处理失败: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"处理失败: {str(e)}"
@@ -140,6 +143,7 @@ async def batch_upload_receipts(
             data=result
         )
     except Exception as e:
+        logger.error(f"批量处理失败: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"批量处理失败: {str(e)}"

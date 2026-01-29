@@ -181,8 +181,6 @@ class VisionAnalyzer:
             }
         ]
 
-        print("*" * 50)
-
         # 添加重试机制
         for attempt in range(max_retries):
             try:
