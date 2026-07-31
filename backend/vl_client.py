@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import time
-from zai._client import ZhipuAiClient
+from zai import ZhipuAiClient
 
 
 class VisionAnalyzer:

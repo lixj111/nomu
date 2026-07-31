@@ -3,11 +3,13 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+import os
 import logging
 import sys
 
 from core.config import settings
 from api.v1 import auth, ledgers, accounts, upload, statistics, export, import_data
+
 
 # 配置日志
 logging.basicConfig(
@@ -79,8 +81,8 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
-        reload=settings.DEBUG,
+        port=8888,
+        reload=False,
         timeout_keep_alive=timeout_keep_alive,
         limit_concurrency=10
     )
