@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # JWT配置
     SECRET_KEY: str = "cxx_zhizhang"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7天
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 365  # 7天
 
     # 文件上传配置
     UPLOAD_DIR: str = "backend/static/uploads"
@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # 识别配置
     CONFIDENCE_THRESHOLD: float = 0.7
+
     AUTO_SAVE: bool = True
 
     # 日志配置
@@ -49,7 +50,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore"
-    )
+        )
 
 
 # 全局配置实例

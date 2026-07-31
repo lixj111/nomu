@@ -26,7 +26,9 @@ VALID_RECEIPT_TYPES = [
 class ReceiptService:
     """账单识别服务"""
 
-    def __init__(self, db: DatabaseManager, api_key: str):
+    def __init__(self, db: DatabaseManager, api_key: Optional[str]):
+        if not api_key:
+            raise ValueError("ZHIPU_API_KEY 未配置，请在 .env 文件中设置")
         self.db = db
         self.analyzer = ReceiptAnalyzer(api_key=api_key)
 

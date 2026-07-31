@@ -1,8 +1,11 @@
 """账单相关模型"""
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 from decimal import Decimal
+
+if TYPE_CHECKING:
+    from database.models import Account
 
 
 class AccountBase(BaseModel):
@@ -50,6 +53,31 @@ class AccountResponse(AccountBase):
     class Config:
         from_attributes = True
         json_encoders = {Decimal: float}
+
+    @classmethod
+    def from_account(cls, account: "Account") -> "AccountResponse":
+        """从 ORM Account 构造响应，集中收窄可空字段类型"""
+        if account.id is None or account.ledger_id is None:
+            raise ValueError("账户未持久化：id/ledger_id 不能为空")
+        if account.created_at is None or account.updated_at is None:
+            raise ValueError("账户时间戳缺失：created_at/updated_at 不能为空")
+        return cls(
+            id=account.id,
+            ledger_id=account.ledger_id,
+            transaction_date=account.transaction_date,
+            amount=account.amount,
+            item_name=account.item_name,
+            category=account.category,
+            merchant_name=account.merchant_name,
+            payment_method=account.payment_method,
+            transaction_type=account.transaction_type,
+            notes=account.notes,
+            image_url=account.image_path,
+            receipt_type=account.receipt_type,
+            confidence=account.confidence,
+            created_at=account.created_at,
+            updated_at=account.updated_at,
+        )
 
 
 class AccountListResponse(BaseModel):

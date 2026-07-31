@@ -44,23 +44,7 @@ async def upload_receipt(
         result = ResponseModel(
             code=200,
             message="识别成功",
-            data=AccountResponse(
-                id=account.id,
-                ledger_id=account.ledger_id,
-                transaction_date=account.transaction_date,
-                amount=float(account.amount),
-                item_name=account.item_name,
-                category=account.category,
-                merchant_name=account.merchant_name,
-                payment_method=account.payment_method,
-                transaction_type=account.transaction_type,
-                notes=account.notes,
-                image_url=account.image_path,
-                receipt_type=account.receipt_type,
-                confidence=account.confidence,
-                created_at=account.created_at,
-                updated_at=account.updated_at
-            )
+            data=AccountResponse.from_account(account)
         )
         return result
     except ValueError as e:
@@ -116,26 +100,7 @@ async def batch_upload_receipts(
         accounts = await receipt_service.batch_recognize(full_paths, relative_paths, ledger_id)
 
         # 转换为响应格式
-        result = [
-            AccountResponse(
-                id=account.id,
-                ledger_id=account.ledger_id,
-                transaction_date=account.transaction_date,
-                amount=float(account.amount),
-                item_name=account.item_name,
-                category=account.category,
-                merchant_name=account.merchant_name,
-                payment_method=account.payment_method,
-                transaction_type=account.transaction_type,
-                notes=account.notes,
-                image_url=account.image_path,
-                receipt_type=account.receipt_type,
-                confidence=account.confidence,
-                created_at=account.created_at,
-                updated_at=account.updated_at
-            )
-            for account in accounts
-        ]
+        result = [AccountResponse.from_account(account) for account in accounts]
 
         return ResponseModel(
             code=200,
@@ -143,7 +108,6 @@ async def batch_upload_receipts(
             data=result
         )
     except Exception as e:
-        logger.error(f"批量处理失败: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"批量处理失败: {str(e)}"

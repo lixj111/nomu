@@ -85,26 +85,7 @@ async def get_accounts(
     )
 
     # 转换为响应格式
-    items = [
-        AccountResponse(
-            id=account.id,
-            ledger_id=account.ledger_id,
-            transaction_date=account.transaction_date,
-            amount=float(account.amount),
-            item_name=account.item_name,
-            category=account.category,
-            merchant_name=account.merchant_name,
-            payment_method=account.payment_method,
-            transaction_type=account.transaction_type,
-            notes=account.notes,
-            image_url=account.image_path,
-            receipt_type=account.receipt_type,
-            confidence=account.confidence,
-            created_at=account.created_at,
-            updated_at=account.updated_at
-        )
-        for account in result["items"]
-    ]
+    items = [AccountResponse.from_account(account) for account in result["items"]]
 
     return ResponseModel(
         code=200,
@@ -145,23 +126,7 @@ async def get_account(
     return ResponseModel(
         code=200,
         message="success",
-        data=AccountResponse(
-            id=account.id,
-            ledger_id=account.ledger_id,
-            transaction_date=account.transaction_date,
-            amount=float(account.amount),
-            item_name=account.item_name,
-            category=account.category,
-            merchant_name=account.merchant_name,
-            payment_method=account.payment_method,
-            transaction_type=account.transaction_type,
-            notes=account.notes,
-            image_url=account.image_path,
-            receipt_type=account.receipt_type,
-            confidence=account.confidence,
-            created_at=account.created_at,
-            updated_at=account.updated_at
-        )
+        data=AccountResponse.from_account(account)
     )
 
 
@@ -199,23 +164,7 @@ async def create_account(
     return ResponseModel(
         code=201,
         message="创建成功",
-        data=AccountResponse(
-            id=created_account.id,
-            ledger_id=created_account.ledger_id,
-            transaction_date=created_account.transaction_date,
-            amount=float(created_account.amount),
-            item_name=created_account.item_name,
-            category=created_account.category,
-            merchant_name=created_account.merchant_name,
-            payment_method=created_account.payment_method,
-            transaction_type=created_account.transaction_type,
-            notes=created_account.notes,
-            image_url=created_account.image_path,
-            receipt_type=created_account.receipt_type,
-            confidence=created_account.confidence,
-            created_at=created_account.created_at,
-            updated_at=created_account.updated_at
-        )
+        data=AccountResponse.from_account(created_account)
     )
 
 
@@ -269,23 +218,7 @@ async def update_account(
     return ResponseModel(
         code=200,
         message="更新成功",
-        data=AccountResponse(
-            id=updated_account.id,
-            ledger_id=updated_account.ledger_id,
-            transaction_date=updated_account.transaction_date,
-            amount=float(updated_account.amount),
-            item_name=updated_account.item_name,
-            category=updated_account.category,
-            merchant_name=updated_account.merchant_name,
-            payment_method=updated_account.payment_method,
-            transaction_type=updated_account.transaction_type,
-            notes=updated_account.notes,
-            image_url=updated_account.image_path,
-            receipt_type=updated_account.receipt_type,
-            confidence=updated_account.confidence,
-            created_at=updated_account.created_at,
-            updated_at=updated_account.updated_at
-        )
+        data=AccountResponse.from_account(updated_account)
     )
 
 
@@ -352,26 +285,7 @@ async def get_accounts_by_date(
     # 转换为响应格式
     result = {}
     for date, accounts in accounts_by_date.items():
-        result[date] = [
-            AccountResponse(
-                id=account.id,
-                ledger_id=account.ledger_id,
-                transaction_date=account.transaction_date,
-                amount=float(account.amount),
-                item_name=account.item_name,
-                category=account.category,
-                merchant_name=account.merchant_name,
-                payment_method=account.payment_method,
-                transaction_type=account.transaction_type,
-                notes=account.notes,
-                image_url=account.image_path,
-                receipt_type=account.receipt_type,
-                confidence=account.confidence,
-                created_at=account.created_at,
-                updated_at=account.updated_at
-            )
-            for account in accounts
-        ]
+        result[date] = [AccountResponse.from_account(account) for account in accounts]
 
     return ResponseModel(
         code=200,
