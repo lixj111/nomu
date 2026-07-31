@@ -47,10 +47,10 @@ request.interceptors.response.use(
       if (url?.includes('/auth/login') || url?.includes('/auth/register')) {
         return Promise.reject(new Error(error.response?.data?.detail || '用户名或密码错误'))
       }
-      // 其他接口的401错误清除token并跳转
+      // 其他接口的401错误清除token并跳转到设置页（弹窗登录）
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      window.location.href = '/settings?login=1'
     }
     // 处理403禁止访问（未登录或无权限）
     if (status === 403) {

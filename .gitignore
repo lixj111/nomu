@@ -192,6 +192,7 @@ temp/
 
 .claude/
 node_modules/
+.playwright-mcp/
 
 bash.exe.stackdump
 *.xlsx

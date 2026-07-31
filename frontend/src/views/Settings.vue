@@ -330,9 +330,12 @@
 import { ref, onMounted, h, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { RightOutlined, UploadOutlined } from '@ant-design/icons-vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore, useLedgerStore } from '@/stores'
 import dayjs from 'dayjs'
 
+const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const ledgerStore = useLedgerStore()
 
@@ -702,7 +705,15 @@ const otherActions = [
 ]
 
 onMounted(() => {
-  ledgerStore.fetchLedgers()
+  // 未登录时不拉账本列表，避免触发 401 死循环
+  if (userStore.isLoggedIn()) {
+    ledgerStore.fetchLedgers()
+  }
+  // 由 401 拦截器跳来时自动弹登录窗
+  if (route.query.login === '1') {
+    router.replace({ path: '/settings' })
+    showLoginModal.value = true
+  }
 })
 
 const setDefaultLedger = async (id) => {
