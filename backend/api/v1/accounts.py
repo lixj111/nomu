@@ -1,6 +1,6 @@
 """账单相关API"""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
+from typing import Optional
 from decimal import Decimal
 from database.models import User, Account
 from database.operations import DatabaseManager
@@ -9,6 +9,21 @@ from schemas.response import ResponseModel
 from api.deps import get_db, get_current_user
 
 router = APIRouter(prefix="/accounts", tags=["账单"])
+
+
+def _verify_account_owner(account: Account, current_user: User, db: DatabaseManager, action: str = "访问") -> None:
+    """验证账单归属，未通过则抛 403；同时收窄 account.ledger_id 类型"""
+    if account.ledger_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="账单数据异常：缺少 ledger_id"
+        )
+    ledger = db.get_ledger_by_id(account.ledger_id)
+    if not ledger or ledger.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"无权{action}该账单"
+        )
 
 
 @router.get("", response_model=ResponseModel[AccountListResponse])
@@ -26,6 +41,7 @@ async def get_accounts(
     """获取账单列表（分页）"""
     # 如果没有指定账本ID，使用默认账本
     if ledger_id is None:
+        assert current_user.id is not None  # 已认证用户必有 id
         default_ledger = db.get_default_ledger(current_user.id)
         if default_ledger:
             ledger_id = default_ledger.id
@@ -35,6 +51,7 @@ async def get_accounts(
                 message="success",
                 data=AccountListResponse(total=0, page=page, page_size=page_size or 20, pages=0, items=[])
             )
+    assert ledger_id is not None  # 已通过默认账本解析
 
     # 验证账本属于当前用户
     ledger = db.get_ledger_by_id(ledger_id)
@@ -116,12 +133,7 @@ async def get_account(
         )
 
     # 验证账本属于当前用户
-    ledger = db.get_ledger_by_id(account.ledger_id)
-    if not ledger or ledger.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权访问该账单"
-        )
+    _verify_account_owner(account, current_user, db, "访问")
 
     return ResponseModel(
         code=200,
@@ -185,12 +197,7 @@ async def update_account(
         )
 
     # 验证账本属于当前用户
-    ledger = db.get_ledger_by_id(account.ledger_id)
-    if not ledger or ledger.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权修改该账单"
-        )
+    _verify_account_owner(account, current_user, db, "修改")
 
     # 更新字段
     if account_data.transaction_date:
@@ -214,6 +221,11 @@ async def update_account(
 
     # 获取更新后的账单
     updated_account = db.get_account_by_id(account_id)
+    if updated_account is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="更新后查询失败"
+        )
 
     return ResponseModel(
         code=200,
@@ -238,12 +250,7 @@ async def delete_account(
         )
 
     # 验证账本属于当前用户
-    ledger = db.get_ledger_by_id(account.ledger_id)
-    if not ledger or ledger.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权删除该账单"
-        )
+    _verify_account_owner(account, current_user, db, "删除")
 
     db.delete_account(account_id)
 
@@ -265,11 +272,13 @@ async def get_accounts_by_date(
     """按日期获取账单（用于日程视图）"""
     # 如果没有指定账本ID，使用默认账本
     if ledger_id is None:
+        assert current_user.id is not None  # 已认证用户必有 id
         default_ledger = db.get_default_ledger(current_user.id)
         if default_ledger:
             ledger_id = default_ledger.id
         else:
             return ResponseModel(code=200, message="success", data={})
+    assert ledger_id is not None  # 已通过默认账本解析
 
     # 验证账本属于当前用户
     ledger = db.get_ledger_by_id(ledger_id)
