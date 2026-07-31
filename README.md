@@ -1,14 +1,8 @@
 # 智账 - AI自动记账系统
 
-基于AI视觉识别的智能记账系统，支持命令行和Web界面两种使用方式。
+基于AI视觉识别的智能记账Web应用，前后端分离架构，移动端友好。
 
-## 版本说明
-
-本项目包含两个版本：
-- **命令行版本**：原始的CLI界面版本（见下方使用说明）
-- **Web版本**：前后端分离的移动端Web应用，提供更丰富的功能和更好的用户体验
-
-## Web版本功能特性
+## 功能特性
 
 ### 核心功能
 - **智能识别**：利用智谱AI视觉模型（glm-4.6v）自动提取账单关键信息
@@ -35,7 +29,7 @@
 - **自定义分类**：支持添加自定义消费分类
 - **数据备份**：本地数据存储和管理
 
-## 快速启动（Web版本）
+## 快速启动
 
 ### 技术栈
 - **后端**：FastAPI + SQLite + 智谱AI
@@ -72,20 +66,9 @@ npm run dev
 
 打开浏览器访问 http://localhost:5173，即可开始使用智账系统。
 
----
+## AI提取信息
 
-## 命令行版本功能特性
-
-- **智能识别**：利用智谱AI视觉模型（glm-4.6v）自动提取账单关键信息
-- **多种票据支持**：支持发票、收据、手写记录、电子账单截图等多种格式
-- **结构化存储**：使用SQLite数据库持久化存储账目记录
-- **批量处理**：支持一次性处理多张账单图片
-- **数据查询**：按日期、分类等条件筛选记录
-- **统计分析**：自动计算收支统计和分类汇总
-
-## 提取信息
-
-系统会自动提取以下账单信息：
+系统会自动从账单图片中提取以下信息：
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
@@ -100,8 +83,8 @@ npm run dev
 ## 项目结构
 
 ```
-omu/
-├── backend/               # Web版本 - 后端服务
+nomu/
+├── backend/               # 后端服务
 │   ├── agent/             # AI识别模块
 │   │   ├── schemas.py     # JSON Schema定义
 │   │   └── receipt_analyzer.py # 账单分析器
@@ -128,40 +111,27 @@ omu/
 │   ├── services/          # 业务逻辑
 │   │   └── auth_service.py
 │   └── main.py            # 应用入口
-├── frontend/              # Web版本 - 前端应用
+├── frontend/              # 前端应用
 │   ├── src/
 │   │   ├── api/           # API接口封装
 │   │   ├── components/    # 组件
-│   │   │   ├── AccountCard.vue # 账单卡片
-│   │   │   ├── AccountForm.vue # 账单表单
-│   │   │   ├── CategoryChart.vue # 分类图表
-│   │   │   ├── TrendChart.vue # 趋势图表
-│   │   │   ├── ImageUploader.vue # 图片上传
-│   │   │   ├── LedgerSelector.vue # 账本选择器
+│   │   │   ├── AccountCard.vue     # 账单卡片
+│   │   │   ├── AccountForm.vue     # 账单表单
+│   │   │   ├── CategoryChart.vue   # 分类图表
+│   │   │   ├── TrendChart.vue      # 趋势图表
+│   │   │   ├── ImageUploader.vue   # 图片上传
+│   │   │   ├── LedgerSelector.vue  # 账本选择器
 │   │   │   └── DraggableFloatButton.vue # 悬浮按钮
 │   │   ├── router/        # 路由配置
 │   │   ├── stores/        # Pinia状态管理
 │   │   └── views/         # 页面视图
-│   │       ├── Ledger.vue # 账本页面
-│   │       ├── Search.vue # 搜索页面
+│   │       ├── Ledger.vue     # 账本页面
+│   │       ├── Search.vue     # 搜索页面
 │   │       ├── BillDetail.vue # 账单详情
-│   │       ├── Schedule.vue # 日程页面
+│   │       ├── Schedule.vue   # 日程页面
 │   │       ├── Statistics.vue # 统计页面
-│   │       └── Settings.vue # 设置页面
+│   │       └── Settings.vue   # 设置页面
 │   └── package.json
-├── cli/                   # 命令行版本
-│   ├── agent/             # Agent核心模块
-│   │   ├── schemas.py     # JSON Schema和Prompt定义
-│   │   ├── receipt_analyzer.py # 账单分析器
-│   │   └── accounting_agent.py # Agent主流程
-│   ├── database/          # 数据库模块
-│   │   ├── models.py      # Account数据模型
-│   │   └── operations.py  # 数据库CRUD操作
-│   ├── config/            # 配置模块
-│   │   └── settings.py    # 配置管理
-│   ├── utils/             # 工具模块
-│   │   └── validators.py  # 数据验证
-│   └── cli.py             # 主入口
 ├── requirements.txt       # Python依赖
 ├── .env.example           # 环境变量模板
 ├── .gitignore             # Git忽略配置
@@ -169,168 +139,9 @@ omu/
 └── README.md              # 项目文档
 ```
 
-## 安装部署
-
-### 环境要求
-
-- Python 3.8+
-- 智谱AI API密钥
-
-### 安装步骤
-
-1. **克隆项目**
-   ```bash
-   cd /path/to/omu
-   ```
-
-2. **安装依赖**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **配置环境变量**
-   ```bash
-   cp .env.example .env
-   ```
-
-   编辑 `.env` 文件，填入你的配置：
-   ```bash
-   ZHIPU_API_KEY=your-api-key-here
-   VISION_MODEL=glm-4.6v
-   DB_PATH=accounting.db
-   CONFIDENCE_THRESHOLD=0.7
-   ```
-
-4. **运行程序**
-   ```bash
-   cd cli
-   python cli.py
-   ```
-
-## 使用说明
-
-### 交互式菜单
-
-启动程序后，会显示以下菜单：
-
-```
-==================================================
-欢迎使用自动记账Agent
-==================================================
-
-请选择操作:
-1. 处理单张账单
-2. 批量处理账单
-3. 查询记账记录
-4. 统计分析
-5. 退出
-```
-
-### 功能详解
-
-#### 1. 处理单张账单
-
-选择选项 `1`，输入图片路径，系统会自动识别账单信息：
-
-```
-请输入选项 (1-5): 1
-请输入图片路径: /path/to/receipt.jpg
-
-正在处理账单: /path/to/receipt.jpg
-✅ 账单识别成功 (置信度: 0.92)
-💾 已保存到数据库 (ID: 1)
-```
-
-#### 2. 批量处理账单
-
-选择选项 `2`，输入包含账单图片的文件夹路径：
-
-```
-请输入选项 (1-5): 2
-请输入图片文件夹路径: /path/to/receipts/
-
-[1/5] 处理: /path/to/receipts/img1.jpg
-正在处理账单: /path/to/receipts/img1.jpg
-...
-```
-
-支持的图片格式：`.png`, `.jpg`, `.jpeg`
-
-#### 3. 查询记账记录
-
-选择选项 `3`，查看最近的账目记录：
-
-```
-请输入选项 (1-5): 3
-
-找到 10 条记录:
-  2024-01-15 | 午餐 | ¥58.50 | 餐饮
-  2024-01-14 | 地铁充值 | ¥100.00 | 交通
-  2024-01-13 | 超市购物 | ¥235.80 | 购物
-  ...
-```
-
-#### 4. 统计分析
-
-选择选项 `4`，查看指定时间段的收支统计：
-
-```
-请输入选项 (1-5): 4
-开始日期 (YYYY-MM-DD): 2024-01-01
-结束日期 (YYYY-MM-DD): 2024-01-31
-
-统计信息 (2024-01-01 至 2024-01-31):
-  总收入: ¥5000.00
-  总支出: ¥1850.30
-  结余: ¥3149.70
-
-分类统计:
-  餐饮: ¥850.50
-  交通: ¥320.00
-  购物: ¥580.80
-  其他: ¥99.00
-```
-
-## 代码示例
-
-### Python API调用
-
-除了交互式界面，你也可以直接在代码中使用（需先进入cli目录）：
-
-```bash
-cd cli
-```
-
-```python
-from agent.accounting_agent import AccountingAgent
-
-# 初始化Agent
-agent = AccountingAgent(
-    api_key="your-api-key",
-    db_path="accounting.db"
-)
-
-# 处理单张账单
-account = agent.process_receipt("receipt.jpg")
-print(f"识别结果: {account.to_dict()}")
-
-# 批量处理
-images = ["receipt1.jpg", "receipt2.jpg", "receipt3.jpg"]
-results = agent.batch_process_receipts(images)
-
-# 查询记录
-records = agent.query_records(
-    start_date="2024-01-01",
-    end_date="2024-01-31",
-    category="餐饮"
-)
-
-# 统计分析
-stats = agent.get_statistics("2024-01-01", "2024-01-31")
-print(f"本月支出: ¥{stats['total_expense']}")
-```
-
 ## 配置说明
+
+编辑 `.env` 文件配置以下参数：
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
@@ -362,7 +173,7 @@ print(f"本月支出: ¥{stats['total_expense']}")
 | updated_at | TIMESTAMP | 更新时间 |
 | is_deleted | BOOLEAN | 软删除标记 |
 
-## Web版本界面展示
+## 界面展示
 
 ### 主要页面
 
@@ -407,7 +218,6 @@ A: 需要在智谱AI官网（https://open.bigmodel.cn/）注册账号并申请AP
 ## 更新日志
 
 ### v1.0.0 (最新版本)
-- ✨ 新增Web版本完整功能
 - ✨ 支持多账本管理
 - ✨ 添加账单搜索功能
 - ✨ 实现数据导入导出
@@ -419,11 +229,10 @@ A: 需要在智谱AI官网（https://open.bigmodel.cn/）注册账号并申请AP
 ## 项目特色
 
 1. **AI驱动**：利用最新的智谱AI视觉模型，识别准确率高
-2. **双版本支持**：提供命令行和Web两个版本，满足不同使用场景
-3. **移动优先**：Web版本专为移动端设计，随时随地记账
-4. **完整功能**：从识别、管理到统计分析，提供完整记账流程
-5. **数据安全**：本地存储，数据完全掌控
-6. **开源免费**：MIT许可证，可自由使用和修改
+2. **移动优先**：专为移动端设计，随时随地记账
+3. **完整功能**：从识别、管理到统计分析，提供完整记账流程
+4. **数据安全**：本地存储，数据完全掌控
+5. **开源免费**：MIT许可证，可自由使用和修改
 
 ## 贡献指南
 
