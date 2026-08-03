@@ -86,6 +86,9 @@ async def get_accounts(
         # 第一页时返回所有数据（无上限）
         if page == 1:
             page_size = total
+
+        # 数据为空时 total=0 会让 page_size 变 0，导致下游分页除零，兜底为 1
+        page_size = max(page_size, 1)
     else:
         # 限制 page_size 最大值为 10000
         page_size = min(page_size, 10000)

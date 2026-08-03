@@ -87,3 +87,24 @@ class Account:
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'is_deleted': self.is_deleted
         }
+
+
+@dataclass
+class ChatSession:
+    """AI 会话数据模型"""
+    id: Optional[int] = None
+    user_id: Optional[int] = None
+    title: Optional[str] = None
+    ledger_id: Optional[int] = None  # 会话锁定的账本ID，开启对话后不可切换
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+@dataclass
+class ChatMessage:
+    """AI 聊天消息数据模型"""
+    id: Optional[int] = None
+    session_id: Optional[int] = None
+    role: Optional[str] = None  # user / assistant
+    content: Optional[str] = None
+    created_at: Optional[datetime] = None

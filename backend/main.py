@@ -8,7 +8,7 @@ import logging
 import sys
 
 from core.config import settings
-from api.v1 import auth, ledgers, accounts, upload, statistics, export, import_data
+from api.v1 import auth, ledgers, accounts, upload, statistics, export, import_data, ai_chat
 
 
 # 配置日志
@@ -54,6 +54,7 @@ app.include_router(upload.router, prefix="/api/v1", tags=["上传"])
 app.include_router(statistics.router, prefix="/api/v1", tags=["统计"])
 app.include_router(export.router, prefix="/api/v1", tags=["导出"])
 app.include_router(import_data.router, prefix="/api/v1", tags=["导入"])
+app.include_router(ai_chat.router, prefix="/api/v1", tags=["AI分析"])
 
 
 @app.get("/")

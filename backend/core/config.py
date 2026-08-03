@@ -13,9 +13,16 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
 
-    # API密钥
+    # 智谱视觉识别配置
     ZHIPU_API_KEY: Optional[str] = None
     VISION_MODEL: str = "glm-4.6v"
+
+    # AI 对话分析配置（openai SDK 直连 DeepSeek OpenAI 兼容接口）
+    DEEPSEEK_API_KEY: Optional[str] = None
+    CHAT_MODEL: str = "deepseek-v4-pro"
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    AI_MAX_ITERATIONS: int = 8  # 工具调用最大循环轮数，防死循环
+    AI_TIMEOUT: float = 120.0  # 单次上游请求超时（秒）
 
     # 数据库配置
     DB_PATH: str = "accounting.db"

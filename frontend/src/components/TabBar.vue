@@ -1,20 +1,14 @@
 <template>
   <a-layout-footer class="tab-bar">
-    <div class="tab-item" :class="{ active: activeTab === 'ledger' }" @click="switchTab('ledger')">
-      <BookOutlined class="tab-icon" />
-      <span class="tab-label">账本</span>
-    </div>
-    <div class="tab-item" :class="{ active: activeTab === 'schedule' }" @click="switchTab('schedule')">
-      <CalendarOutlined class="tab-icon" />
-      <span class="tab-label">日程</span>
-    </div>
-    <div class="tab-item" :class="{ active: activeTab === 'statistics' }" @click="switchTab('statistics')">
-      <BarChartOutlined class="tab-icon" />
-      <span class="tab-label">统计</span>
-    </div>
-    <div class="tab-item" :class="{ active: activeTab === 'settings' }" @click="switchTab('settings')">
-      <SettingOutlined class="tab-icon" />
-      <span class="tab-label">设置</span>
+    <div
+      v-for="tab in tabs"
+      :key="tab.key"
+      class="tab-item"
+      :class="{ active: activeTab === tab.key }"
+      @click="switchTab(tab)"
+    >
+      <component :is="tab.icon" class="tab-icon" />
+      <span class="tab-label">{{ tab.label }}</span>
     </div>
   </a-layout-footer>
 </template>
@@ -28,20 +22,26 @@ import {
   BarChartOutlined,
   SettingOutlined
 } from '@ant-design/icons-vue'
+import ZhiIcon from './ZhiIcon.vue'
+
+const tabs = [
+  { key: 'ledger', name: 'Ledger', icon: BookOutlined, label: '账本' },
+  { key: 'schedule', name: 'Schedule', icon: CalendarOutlined, label: '日程' },
+  { key: 'aichat', name: 'AIChat', icon: ZhiIcon, label: '小智' },
+  { key: 'statistics', name: 'Statistics', icon: BarChartOutlined, label: '统计' },
+  { key: 'settings', name: 'Settings', icon: SettingOutlined, label: '设置' }
+]
 
 const router = useRouter()
 const route = useRoute()
 
 const activeTab = computed(() => {
   const routeName = route.name?.toLowerCase() || ''
-  if (routeName.includes('schedule')) return 'schedule'
-  if (routeName.includes('statistics')) return 'statistics'
-  if (routeName.includes('settings')) return 'settings'
-  return 'ledger'
+  return tabs.find((tab) => routeName.includes(tab.key))?.key || 'ledger'
 })
 
 const switchTab = (tab) => {
-  router.push({ name: tab.charAt(0).toUpperCase() + tab.slice(1) })
+  router.push({ name: tab.name })
 }
 </script>
 

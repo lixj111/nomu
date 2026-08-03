@@ -1,5 +1,6 @@
 # Core dependencies
 zai-sdk==0.2.1
+openai==1.75.0
 sniffio
 
 # Environment variables

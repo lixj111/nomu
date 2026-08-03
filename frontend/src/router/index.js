@@ -31,6 +31,12 @@ const routes = [
     meta: { title: '日程', icon: 'calendar', requiresAuth: true }
   },
   {
+    path: '/ai-chat',
+    name: 'AIChat',
+    component: () => import('@/views/AIChat.vue'),
+    meta: { title: '小智', icon: 'robot', requiresAuth: true }
+  },
+  {
     path: '/statistics',
     name: 'Statistics',
     component: () => import('@/views/Statistics.vue'),

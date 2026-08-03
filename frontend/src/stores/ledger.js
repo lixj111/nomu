@@ -5,7 +5,8 @@ import * as ledgerApi from '@/api/ledger'
 
 export const useLedgerStore = defineStore('ledger', () => {
   const ledgers = ref([])
-  const currentLedgerId = ref(localStorage.getItem('currentLedgerId') || null)
+  const storedLedgerId = localStorage.getItem('currentLedgerId')
+  const currentLedgerId = ref(storedLedgerId ? Number(storedLedgerId) : null)
   const loading = ref(false)
 
   // 当前账本

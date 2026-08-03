@@ -5,7 +5,7 @@ from typing import List, Optional, Dict
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
-from .models import Account, Ledger, User
+from .models import Account, ChatMessage, ChatSession, Ledger, User
 
 
 class DatabaseManager:
@@ -100,6 +100,34 @@ class DatabaseManager:
             # 创建索引：加速按收支类型查询和统计
             conn.execute("CREATE INDEX IF NOT EXISTS idx_accounts_transaction_type ON accounts(transaction_type)")
 
+            # 创建 AI 会话表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    title VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+
+            # 创建 AI 消息表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id INTEGER,
+                    role VARCHAR(20) NOT NULL,
+                    content TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+                )
+            """)
+
+            # 创建索引：加速按用户查询会话、按会话查询消息
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id)")
+
             # 为现有数据添加默认账本（如果表存在但 ledger_id 列不存在）
             self._migrate_existing_data(conn)
 
@@ -122,6 +150,12 @@ class DatabaseManager:
 
                 # 更新现有账单的ledger_id
                 conn.execute("UPDATE accounts SET ledger_id = 1 WHERE ledger_id IS NULL")
+
+            # chat_sessions 表增加 ledger_id 列（会话绑定的账本，旧会话为 NULL）
+            cursor = conn.execute("PRAGMA table_info(chat_sessions)")
+            session_columns = [row[1] for row in cursor.fetchall()]
+            if 'ledger_id' not in session_columns:
+                conn.execute("ALTER TABLE chat_sessions ADD COLUMN ledger_id INTEGER")
         except Exception:
             # 如果迁移失败，忽略（表可能已经是新结构）
             pass
@@ -248,6 +282,9 @@ class DatabaseManager:
         page_size: int = 20
     ) -> Dict:
         """分页查询账目列表"""
+        # 防御性兜底：page_size 必须 ≥1，否则下方计算总页数会除零
+        if not page_size or page_size < 1:
+            page_size = 20
         query = "SELECT * FROM accounts WHERE is_deleted = 0"
         count_query = "SELECT COUNT(*) FROM accounts WHERE is_deleted = 0"
         params = []
@@ -545,6 +582,37 @@ class DatabaseManager:
             )
             return cursor.rowcount > 0
 
+    def get_trend(
+        self,
+        start_date: str,
+        end_date: str,
+        ledger_id: int,
+        group_by: str = "month"
+    ) -> List[Dict]:
+        """按天/月分组统计收支趋势（含端点日期）"""
+        date_expr = "strftime('%Y-%m', transaction_date)" if group_by == "month" else "transaction_date"
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(f"""
+                SELECT {date_expr} as date, transaction_type, SUM(amount) as total
+                FROM accounts
+                WHERE ledger_id = ? AND transaction_date >= ? AND transaction_date <= ?
+                AND is_deleted = 0
+                GROUP BY date, transaction_type
+                ORDER BY date
+            """, (ledger_id, start_date, end_date))
+            rows = cursor.fetchall()
+
+        trend = {}
+        for date, trans_type, total in rows:
+            bucket = trend.setdefault(date, {"date": date, "income": 0.0, "expense": 0.0})
+            if trans_type == "收入":
+                bucket["income"] = float(total)
+            else:
+                bucket["expense"] = float(total)
+
+        return list(trend.values())
+
     def get_ledger_account_count(self, ledger_id: int) -> int:
         """获取账本下的账单数量"""
         with self._get_connection() as conn:
@@ -624,3 +692,112 @@ class DatabaseManager:
             result[date].append(account)
 
         return result
+
+    # ---------- AI 会话与消息 ----------
+
+    def create_chat_session(
+        self, user_id: int, title: Optional[str] = None, ledger_id: Optional[int] = None
+    ) -> int:
+        """创建会话，返回会话ID；ledger_id 绑定该会话的分析账本"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "INSERT INTO chat_sessions (user_id, title, ledger_id) VALUES (?, ?, ?)",
+                (user_id, title or "新会话", ledger_id),
+            )
+            return cursor.lastrowid
+
+    def get_chat_session(self, session_id: int, user_id: int) -> Optional[ChatSession]:
+        """获取会话（校验归属）"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM chat_sessions WHERE id = ? AND user_id = ?",
+                (session_id, user_id),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return ChatSession(
+                id=row["id"],
+                user_id=row["user_id"],
+                title=row["title"],
+                ledger_id=row["ledger_id"],
+                created_at=self._parse_beijing_time(row["created_at"]),
+                updated_at=self._parse_beijing_time(row["updated_at"]),
+            )
+
+    def list_chat_sessions(self, user_id: int) -> List[Dict]:
+        """列出用户会话（含消息数，按更新时间倒序）"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT s.id, s.title, s.ledger_id, s.created_at, s.updated_at,
+                       (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = s.id) AS message_count
+                FROM chat_sessions s
+                WHERE s.user_id = ?
+                ORDER BY s.updated_at DESC, s.id DESC
+            """, (user_id,))
+            return [
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "ledger_id": row["ledger_id"],
+                    "message_count": row["message_count"],
+                    "created_at": self._parse_beijing_time(row["created_at"]),
+                    "updated_at": self._parse_beijing_time(row["updated_at"]),
+                }
+                for row in cursor.fetchall()
+            ]
+
+    def update_chat_session_title(self, session_id: int, title: str) -> bool:
+        """更新会话标题"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE chat_sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (title, session_id),
+            )
+            return cursor.rowcount > 0
+
+    def touch_chat_session(self, session_id: int) -> bool:
+        """更新会话的最近活动时间"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (session_id,),
+            )
+            return cursor.rowcount > 0
+
+    def delete_chat_session(self, session_id: int, user_id: int) -> bool:
+        """删除会话及其消息（校验归属）"""
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+            cursor = conn.execute(
+                "DELETE FROM chat_sessions WHERE id = ? AND user_id = ?",
+                (session_id, user_id),
+            )
+            return cursor.rowcount > 0
+
+    def add_chat_message(self, session_id: int, role: str, content: str) -> int:
+        """添加一条会话消息"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "INSERT INTO chat_messages (session_id, role, content) VALUES (?, ?, ?)",
+                (session_id, role, content),
+            )
+            return cursor.lastrowid
+
+    def list_chat_messages(self, session_id: int) -> List[ChatMessage]:
+        """获取会话的全部消息（按时间正序）"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY id ASC",
+                (session_id,),
+            )
+            return [
+                ChatMessage(
+                    id=row["id"],
+                    session_id=row["session_id"],
+                    role=row["role"],
+                    content=row["content"],
+                    created_at=self._parse_beijing_time(row["created_at"]),
+                )
+                for row in cursor.fetchall()
+            ]
