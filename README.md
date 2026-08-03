@@ -22,7 +22,13 @@
 - **数据统计**：收支总额、分类占比、趋势分析
 - **分类图表**：饼图展示各类别支出占比
 - **趋势图表**：折线图展示收支趋势
-- **日程视图**：按日期查看收支情况，热力图展示消费密度
+
+### 回忆功能
+- **回忆空间**：与指定对象建立专属回忆空间，记录共同时光
+- **对话式时间线**：事件以聊天气泡形式展示，区分「我」与「对象」的回忆
+- **事件与照片**：为每个事件添加标题、日期、地点、描述及多张照片
+- **照片网格**：仿微信朋友圈的多图自适应布局
+- **日期筛选**：按日期范围筛选回忆事件
 
 ### 设置功能
 - **账本管理**：创建、切换、删除账本
@@ -50,7 +56,7 @@ cd backend
 python main.py
 ```
 
-后端运行在 http://localhost:8000，API文档：http://localhost:8000/docs
+后端运行在 http://localhost:8888，API文档：http://localhost:8888/docs
 
 ### 2. 前端启动
 
@@ -60,11 +66,11 @@ npm install
 npm run dev
 ```
 
-前端运行在 http://localhost:5173
+前端运行在 http://localhost:51073
 
 ### 3. 访问应用
 
-打开浏览器访问 http://localhost:5173，即可开始使用智账系统。
+打开浏览器访问 http://localhost:51073，即可开始使用智账系统。
 
 ## AI提取信息
 
@@ -96,7 +102,9 @@ nomu/
 │   │   │   ├── upload.py  # 上传接口
 │   │   │   ├── statistics.py # 统计接口
 │   │   │   ├── export.py  # 导出接口
-│   │   │   └── import_data.py # 导入接口
+│   │   │   ├── import_data.py # 导入接口
+│   │   │   ├── ai_chat.py # AI对话接口
+│   │   │   └── memories.py # 回忆接口
 │   │   └── deps.py        # 依赖注入
 │   ├── core/              # 核心模块
 │   │   ├── config.py      # 配置管理
@@ -107,6 +115,8 @@ nomu/
 │   ├── schemas/           # Pydantic模型
 │   │   ├── user.py        # 用户模型
 │   │   ├── ledger.py      # 账本模型
+│   │   ├── account.py     # 账单模型
+│   │   ├── memory.py      # 回忆模型
 │   │   └── statistics.py  # 统计模型
 │   ├── services/          # 业务逻辑
 │   │   └── auth_service.py
@@ -128,7 +138,8 @@ nomu/
 │   │       ├── Ledger.vue     # 账本页面
 │   │       ├── Search.vue     # 搜索页面
 │   │       ├── BillDetail.vue # 账单详情
-│   │       ├── Schedule.vue   # 日程页面
+│   │       ├── Memories.vue   # 回忆页面
+│   │       ├── AIChat.vue     # 小智AI对话页面
 │   │       ├── Statistics.vue # 统计页面
 │   │       └── Settings.vue   # 设置页面
 │   └── package.json
@@ -173,6 +184,46 @@ nomu/
 | updated_at | TIMESTAMP | 更新时间 |
 | is_deleted | BOOLEAN | 软删除标记 |
 
+### memories 表（回忆空间）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER | 主键（自增） |
+| user_id | INTEGER | 关联用户ID（一人一回忆） |
+| partner_name | VARCHAR(50) | 对象名称 |
+| partner_avatar | VARCHAR(500) | 对象头像相对路径 |
+| story | VARCHAR(500) | 寄语/简介 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
+| is_deleted | BOOLEAN | 软删除标记 |
+
+### memory_events 表（回忆事件）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER | 主键（自增） |
+| memory_id | INTEGER | 关联回忆ID |
+| title | VARCHAR(200) | 事件标题 |
+| event_date | DATE | 事件日期 |
+| description | TEXT | 事件描述 |
+| location | VARCHAR(200) | 地点 |
+| cover_path | VARCHAR(500) | 封面图相对路径 |
+| author | VARCHAR(20) | 事件主体：user/partner |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
+| is_deleted | BOOLEAN | 软删除标记 |
+
+### memory_photos 表（回忆照片）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER | 主键（自增） |
+| event_id | INTEGER | 关联事件ID |
+| image_path | VARCHAR(500) | 图片相对路径 |
+| caption | VARCHAR(200) | 照片说明 |
+| created_at | TIMESTAMP | 创建时间 |
+| is_deleted | BOOLEAN | 软删除标记 |
+
 ## 界面展示
 
 ### 主要页面
@@ -180,7 +231,7 @@ nomu/
 1. **账本页面**：展示所有账单列表，支持分页加载和无限滚动
 2. **搜索页面**：支持按关键词、分类、日期范围搜索，滚动位置记忆
 3. **账单详情**：查看完整账单信息，支持编辑和删除操作
-4. **日程页面**：日历视图展示每日收支，热力图显示消费密度
+4. **回忆页面**：与对象共建回忆空间，对话式时间线记录事件与照片
 5. **统计页面**：分类饼图、趋势折线图、收支统计汇总
 6. **设置页面**：账本管理、分类管理、数据导入导出、数据清除
 
@@ -217,7 +268,12 @@ A: 需要在智谱AI官网（https://open.bigmodel.cn/）注册账号并申请AP
 
 ## 更新日志
 
-### v1.0.0 (最新版本)
+### v1.1.0 (最新版本)
+- ✨ 新增回忆功能：与对象共建回忆空间，对话式时间线记录事件与照片
+- ✨ 事件支持主体（我/对象）、朋友圈式照片网格、日期范围筛选
+- 🗑️ 移除使用率低的日程页面
+
+### v1.0.0
 - ✨ 支持多账本管理
 - ✨ 添加账单搜索功能
 - ✨ 实现数据导入导出
