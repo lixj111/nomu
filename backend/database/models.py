@@ -108,3 +108,83 @@ class ChatMessage:
     role: Optional[str] = None  # user / assistant
     content: Optional[str] = None
     created_at: Optional[datetime] = None
+
+
+@dataclass
+class Memory:
+    """回忆空间数据模型"""
+    id: Optional[int] = None
+    user_id: Optional[int] = None  # 关联用户ID（一人一回忆）
+    partner_name: str = None  # 对象名称
+    partner_avatar: Optional[str] = None  # 对象头像相对路径
+    story: Optional[str] = None  # 寄语/简介
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    is_deleted: bool = False
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'partner_name': self.partner_name,
+            'partner_avatar': self.partner_avatar,
+            'story': self.story,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'is_deleted': self.is_deleted
+        }
+
+
+@dataclass
+class MemoryEvent:
+    """回忆事件数据模型"""
+    id: Optional[int] = None
+    memory_id: Optional[int] = None  # 关联回忆ID
+    title: str = None  # 事件标题
+    event_date: str = None  # 事件日期，格式: YYYY-MM-DD
+    description: Optional[str] = None  # 事件描述
+    location: Optional[str] = None  # 地点
+    cover_path: Optional[str] = None  # 封面图相对路径
+    author: str = 'user'  # 事件主体：user(当前用户) / partner(对象)
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    is_deleted: bool = False
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'memory_id': self.memory_id,
+            'title': self.title,
+            'event_date': self.event_date,
+            'description': self.description,
+            'location': self.location,
+            'cover_path': self.cover_path,
+            'author': self.author,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'is_deleted': self.is_deleted
+        }
+
+
+@dataclass
+class MemoryPhoto:
+    """回忆照片数据模型"""
+    id: Optional[int] = None
+    event_id: Optional[int] = None  # 关联事件ID
+    image_path: str = None  # 图片相对路径，如 uploads/20260119/1.png
+    caption: Optional[str] = None  # 照片说明
+    created_at: Optional[datetime] = None
+    is_deleted: bool = False
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'event_id': self.event_id,
+            'image_path': self.image_path,
+            'caption': self.caption,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'is_deleted': self.is_deleted
+        }

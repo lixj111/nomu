@@ -2,3 +2,4 @@
 export { useUserStore } from './user'
 export { useLedgerStore } from './ledger'
 export { useAccountStore } from './account'
+export { useMemoryStore } from './memory'

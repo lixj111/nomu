@@ -5,7 +5,7 @@ from typing import List, Optional, Dict
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
-from .models import Account, ChatMessage, ChatSession, Ledger, User
+from .models import Account, ChatMessage, ChatSession, Ledger, Memory, MemoryEvent, MemoryPhoto, User
 
 
 class DatabaseManager:
@@ -128,6 +128,57 @@ class DatabaseManager:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id)")
 
+            # 创建回忆空间表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS memories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    partner_name VARCHAR(50) NOT NULL,
+                    partner_avatar VARCHAR(500),
+                    story VARCHAR(500),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_deleted BOOLEAN DEFAULT 0,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+
+            # 创建回忆事件表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS memory_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    memory_id INTEGER,
+                    title VARCHAR(200) NOT NULL,
+                    event_date DATE NOT NULL,
+                    description TEXT,
+                    location VARCHAR(200),
+                    cover_path VARCHAR(500),
+                    author VARCHAR(20) DEFAULT 'user',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_deleted BOOLEAN DEFAULT 0,
+                    FOREIGN KEY (memory_id) REFERENCES memories(id)
+                )
+            """)
+
+            # 创建回忆照片表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS memory_photos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id INTEGER,
+                    image_path VARCHAR(500) NOT NULL,
+                    caption VARCHAR(200),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_deleted BOOLEAN DEFAULT 0,
+                    FOREIGN KEY (event_id) REFERENCES memory_events(id)
+                )
+            """)
+
+            # 创建索引：加速按用户查询回忆、按回忆查询事件、按事件查询照片
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_memory_events_memory_id ON memory_events(memory_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_memory_photos_event_id ON memory_photos(event_id)")
+
             # 为现有数据添加默认账本（如果表存在但 ledger_id 列不存在）
             self._migrate_existing_data(conn)
 
@@ -156,6 +207,12 @@ class DatabaseManager:
             session_columns = [row[1] for row in cursor.fetchall()]
             if 'ledger_id' not in session_columns:
                 conn.execute("ALTER TABLE chat_sessions ADD COLUMN ledger_id INTEGER")
+
+            # memory_events 表增加 author 列（事件主体: user/partner）
+            cursor = conn.execute("PRAGMA table_info(memory_events)")
+            event_columns = [row[1] for row in cursor.fetchall()]
+            if 'author' not in event_columns:
+                conn.execute("ALTER TABLE memory_events ADD COLUMN author VARCHAR(20) DEFAULT 'user'")
         except Exception:
             # 如果迁移失败，忽略（表可能已经是新结构）
             pass
@@ -801,3 +858,182 @@ class DatabaseManager:
                 )
                 for row in cursor.fetchall()
             ]
+
+    # ==================== 回忆空间 ====================
+
+    def create_memory(self, memory: Memory) -> int:
+        """创建回忆空间"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO memories (user_id, partner_name, partner_avatar, story)
+                VALUES (?, ?, ?, ?)
+            """, (memory.user_id, memory.partner_name, memory.partner_avatar, memory.story))
+            return cursor.lastrowid
+
+    def get_memory_by_user(self, user_id: int) -> Optional[Memory]:
+        """获取用户的回忆空间（一人一回忆）"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM memories WHERE user_id = ? AND is_deleted = 0",
+                (user_id,)
+            )
+            row = cursor.fetchone()
+            return self._row_to_memory(row) if row else None
+
+    def get_memory_by_id(self, memory_id: int) -> Optional[Memory]:
+        """根据ID查询回忆空间"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM memories WHERE id = ? AND is_deleted = 0",
+                (memory_id,)
+            )
+            row = cursor.fetchone()
+            return self._row_to_memory(row) if row else None
+
+    def update_memory(self, memory_id: int, memory: Memory) -> bool:
+        """更新回忆空间"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                UPDATE memories SET
+                    partner_name = ?, partner_avatar = ?, story = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND is_deleted = 0
+            """, (memory.partner_name, memory.partner_avatar, memory.story, memory_id))
+            return cursor.rowcount > 0
+
+    @staticmethod
+    def _row_to_memory(row) -> Memory:
+        """将数据库行转换为Memory对象"""
+        return Memory(
+            id=row["id"],
+            user_id=row["user_id"],
+            partner_name=row["partner_name"],
+            partner_avatar=row["partner_avatar"],
+            story=row["story"],
+            created_at=DatabaseManager._parse_beijing_time(row["created_at"]),
+            updated_at=DatabaseManager._parse_beijing_time(row["updated_at"]),
+            is_deleted=bool(row["is_deleted"])
+        )
+
+    # ==================== 回忆事件 ====================
+
+    def create_memory_event(self, event: MemoryEvent) -> int:
+        """创建回忆事件"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO memory_events (memory_id, title, event_date, description, location, cover_path, author)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (event.memory_id, event.title, event.event_date, event.description, event.location, event.cover_path, event.author))
+            return cursor.lastrowid
+
+    def get_memory_event_by_id(self, event_id: int) -> Optional[MemoryEvent]:
+        """根据ID查询回忆事件"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM memory_events WHERE id = ? AND is_deleted = 0",
+                (event_id,)
+            )
+            row = cursor.fetchone()
+            return self._row_to_memory_event(row) if row else None
+
+    def get_memory_events(self, memory_id: int) -> List[MemoryEvent]:
+        """获取回忆下的所有事件（按事件日期倒序）"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM memory_events WHERE memory_id = ? AND is_deleted = 0 ORDER BY event_date DESC, created_at DESC",
+                (memory_id,)
+            )
+            return [self._row_to_memory_event(row) for row in cursor.fetchall()]
+
+    def update_memory_event(self, event_id: int, event: MemoryEvent) -> bool:
+        """更新回忆事件"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                UPDATE memory_events SET
+                    title = ?, event_date = ?, description = ?, location = ?, cover_path = ?, author = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND is_deleted = 0
+            """, (event.title, event.event_date, event.description, event.location, event.cover_path, event.author, event_id))
+            return cursor.rowcount > 0
+
+    def delete_memory_event(self, event_id: int) -> bool:
+        """软删除回忆事件（级联软删其照片）"""
+        with self._get_connection() as conn:
+            # 级联软删该事件下的所有照片
+            conn.execute(
+                "UPDATE memory_photos SET is_deleted = 1 WHERE event_id = ?",
+                (event_id,)
+            )
+            cursor = conn.execute(
+                "UPDATE memory_events SET is_deleted = 1 WHERE id = ?",
+                (event_id,)
+            )
+            return cursor.rowcount > 0
+
+    @staticmethod
+    def _row_to_memory_event(row) -> MemoryEvent:
+        """将数据库行转换为MemoryEvent对象"""
+        return MemoryEvent(
+            id=row["id"],
+            memory_id=row["memory_id"],
+            title=row["title"],
+            event_date=row["event_date"],
+            description=row["description"],
+            location=row["location"],
+            cover_path=row["cover_path"],
+            author=row["author"],
+            created_at=DatabaseManager._parse_beijing_time(row["created_at"]),
+            updated_at=DatabaseManager._parse_beijing_time(row["updated_at"]),
+            is_deleted=bool(row["is_deleted"])
+        )
+
+    # ==================== 回忆照片 ====================
+
+    def create_memory_photo(self, photo: MemoryPhoto) -> int:
+        """创建回忆照片记录"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO memory_photos (event_id, image_path, caption)
+                VALUES (?, ?, ?)
+            """, (photo.event_id, photo.image_path, photo.caption))
+            return cursor.lastrowid
+
+    def get_memory_photo_by_id(self, photo_id: int) -> Optional[MemoryPhoto]:
+        """根据ID查询回忆照片"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM memory_photos WHERE id = ? AND is_deleted = 0",
+                (photo_id,)
+            )
+            row = cursor.fetchone()
+            return self._row_to_memory_photo(row) if row else None
+
+    def get_photos_by_event(self, event_id: int) -> List[MemoryPhoto]:
+        """获取事件下的所有照片（按创建时间正序）"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM memory_photos WHERE event_id = ? AND is_deleted = 0 ORDER BY id ASC",
+                (event_id,)
+            )
+            return [self._row_to_memory_photo(row) for row in cursor.fetchall()]
+
+    def delete_memory_photo(self, photo_id: int) -> bool:
+        """软删除回忆照片"""
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE memory_photos SET is_deleted = 1 WHERE id = ?",
+                (photo_id,)
+            )
+            return cursor.rowcount > 0
+
+    @staticmethod
+    def _row_to_memory_photo(row) -> MemoryPhoto:
+        """将数据库行转换为MemoryPhoto对象"""
+        return MemoryPhoto(
+            id=row["id"],
+            event_id=row["event_id"],
+            image_path=row["image_path"],
+            caption=row["caption"],
+            created_at=DatabaseManager._parse_beijing_time(row["created_at"]),
+            is_deleted=bool(row["is_deleted"])
+        )

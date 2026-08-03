@@ -25,10 +25,10 @@ const routes = [
     meta: { title: '账单详情', requiresAuth: true }
   },
   {
-    path: '/schedule',
-    name: 'Schedule',
-    component: () => import('@/views/Schedule.vue'),
-    meta: { title: '日程', icon: 'calendar', requiresAuth: true }
+    path: '/memories',
+    name: 'Memories',
+    component: () => import('@/views/Memories.vue'),
+    meta: { title: '回忆', icon: 'heart', requiresAuth: true }
   },
   {
     path: '/ai-chat',

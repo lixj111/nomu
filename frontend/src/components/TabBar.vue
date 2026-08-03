@@ -18,7 +18,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   BookOutlined,
-  CalendarOutlined,
+  HeartOutlined,
   BarChartOutlined,
   SettingOutlined
 } from '@ant-design/icons-vue'
@@ -26,7 +26,7 @@ import ZhiIcon from './ZhiIcon.vue'
 
 const tabs = [
   { key: 'ledger', name: 'Ledger', icon: BookOutlined, label: '账本' },
-  { key: 'schedule', name: 'Schedule', icon: CalendarOutlined, label: '日程' },
+  { key: 'memories', name: 'Memories', icon: HeartOutlined, label: '回忆' },
   { key: 'aichat', name: 'AIChat', icon: ZhiIcon, label: '小智' },
   { key: 'statistics', name: 'Statistics', icon: BarChartOutlined, label: '统计' },
   { key: 'settings', name: 'Settings', icon: SettingOutlined, label: '设置' }
